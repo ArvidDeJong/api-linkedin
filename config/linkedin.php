@@ -117,6 +117,7 @@ return [
 
     'session' => [
         'state_key' => 'linkedin_oauth_state',
+        'scopes_key' => 'linkedin_requested_scopes',
         'status_key' => 'linkedin_status',
         'error_key' => 'linkedin_error',
     ],

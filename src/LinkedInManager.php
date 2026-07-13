@@ -37,14 +37,41 @@ class LinkedInManager
         return $this->oauth->organizationListingEnabled();
     }
 
-    public function authorizationUrl(string $state): string
+    /**
+     * @param  list<string>|null  $scopes  Overrides the configured scopes; pass
+     *                                     {@see Scopes::MEMBER} to connect without
+     *                                     the Community Management API.
+     */
+    public function authorizationUrl(string $state, ?array $scopes = null): string
     {
-        return $this->oauth->authorizationUrl($state);
+        return $this->oauth->authorizationUrl($state, $scopes);
     }
 
-    public function connectFromCode(string $code): LinkedInAccount
+    /**
+     * @param  list<string>|null  $requestedScopes  The set sent to {@see authorizationUrl()}.
+     */
+    public function connectFromCode(string $code, ?array $requestedScopes = null): LinkedInAccount
     {
-        return $this->oauth->connectFromCode($code);
+        return $this->oauth->connectFromCode($code, $requestedScopes);
+    }
+
+    /**
+     * May the current connection list company pages? Both the config and the
+     * granted scopes have to allow it — gate your UI on this instead of on the
+     * config alone, or you will offer targets that publish into a 403.
+     */
+    public function canListOrganizations(): bool
+    {
+        return $this->organizationListingEnabled()
+            && (bool) $this->account()?->canListOrganizations();
+    }
+
+    /**
+     * May the current connection publish on behalf of a company page?
+     */
+    public function canPostAsOrganization(): bool
+    {
+        return (bool) $this->account()?->canPostAsOrganization();
     }
 
     /**

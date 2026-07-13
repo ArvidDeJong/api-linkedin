@@ -9,6 +9,7 @@ LinkedIn Posts API. Without external dependencies (only the built-in HTTP client
 - OAuth 2.0 authorization code flow with automatic token refresh
 - Post on behalf of a member (`w_member_social`) or an organization (`w_organization_social`)
 - List the company pages you administer and pick one per post
+- Knows which scopes LinkedIn actually granted, so an app without the Community Management API still connects — on the profile
 - Encrypted token storage in a `linkedin_accounts` table
 - Optional, ready-to-use connect/callback routes
 - `LinkedIn` facade for a one-liner post
@@ -58,6 +59,66 @@ flash message in `session('linkedin_status')` or `session('linkedin_error')`.
 Want to wire the flow yourself? Set `linkedin.routes.enabled` to `false` and use
 `LinkedIn::authorizationUrl($state)` and `LinkedIn::connectFromCode($code)`.
 
+### When LinkedIn refuses the whole authorization
+
+LinkedIn rejects the **entire** authorization when a single requested scope is not
+authorized for your app — the member never even reaches the consent screen. So an
+app without the **Community Management API** cannot connect at all as long as the
+config asks for company pages, however harmless that seems.
+
+Connect with the member scopes only, and it works on any app:
+
+```blade
+<a href="{{ route('linkedin.connect', ['profile_only' => 1]) }}">Connect with my profile only</a>
+```
+
+Wiring the flow yourself? Pass the scopes explicitly, and hand the same set to
+`connectFromCode()` so the granted scopes are recorded truthfully even when
+LinkedIn leaves `scope` out of the token response:
+
+```php
+use Darvis\ApiLinkedin\Scopes;
+
+$url = LinkedIn::authorizationUrl($state, Scopes::MEMBER);
+// ...
+$account = LinkedIn::connectFromCode($code, Scopes::MEMBER);
+```
+
+Read the denial instead of parsing LinkedIn's English text (which arrives
+HTML-escaped, so echoing it straight into Blade shows the entities):
+
+```php
+use Darvis\ApiLinkedin\AuthorizationDenial;
+
+if ($denial = AuthorizationDenial::fromCallback($request)) {
+    $denial->description;                    // decoded, human-readable
+    $denial->isScopeProblem();               // your app lacks a product — retrying is pointless
+    $denial->missingScope();                 // 'w_organization_social'
+    $denial->isRecoverableWithMemberScopes();// offer the profile-only connect
+}
+```
+
+## What the connection may do
+
+The config says what to *ask* for; the token says what you *got*. They drift apart
+the moment the LinkedIn app misses a product, and it is the token that decides.
+Gate your UI on the connection, never on the config alone — otherwise you offer
+targets that publish into a 403:
+
+```php
+LinkedIn::canListOrganizations();   // config allows it AND the token carries r_organization_admin
+LinkedIn::canPostAsOrganization();  // the token carries w_organization_social
+
+$account = LinkedIn::account();
+$account->grantedScopes();          // ['openid', 'profile', 'w_member_social'] — or null when unknown
+$account->hasScope(Scopes::POST_AS_ORGANIZATION);
+```
+
+A connection stored before 1.4 has no recorded scopes. `grantedScopes()` is then
+`null` and both `hasScope()` and `lacksScope()` return `false`: the package refuses
+to guess in either direction, so nothing is offered that it cannot promise and
+nothing is blocked that might still work.
+
 ## Publishing
 
 ```php
@@ -105,7 +166,8 @@ per post.
 > **Two things to know.** Listing requires the `r_organization_admin` scope, which
 > is only requested when this setting is on and requires Community Management API
 > access. Turning it on **after** connecting means your existing token does not
-> carry the scope — you have to reconnect. The list is cached for
+> carry the scope — you have to reconnect, and `organizations()` throws
+> `LinkedInScopeMissing` until you do. The list is cached for
 > `linkedin.organizations.cache_ttl` seconds (one hour by default).
 
 ### Through the services (dependency injection)
@@ -132,6 +194,7 @@ use Darvis\ApiLinkedin\Exceptions\{
     LinkedInApiException,
     LinkedInConnectionExpired,
     LinkedInNotConnected,
+    LinkedInScopeMissing,
 };
 
 try {
@@ -140,6 +203,9 @@ try {
     // Nobody connected an account yet.
 } catch (LinkedInConnectionExpired) {
     // Send the user back through the OAuth flow — the only failure they can fix.
+} catch (LinkedInScopeMissing $e) {
+    // $e->scope was never granted. Add the product to the LinkedIn app and reconnect;
+    // no request was sent, because LinkedIn would only have answered 403.
 } catch (LinkedInApiException $e) {
     // $e->operation  'token' | 'profile' | 'publish' | 'organizations'
     // $e->status     HTTP status
@@ -155,6 +221,7 @@ try {
 | `LinkedInNotConnected` | No account connected |
 | `LinkedInConnectionExpired` | Token expired and not refreshable — reconnect |
 | `LinkedInConfigurationException` | A required setting is missing |
+| `LinkedInScopeMissing` | The token provably lacks the scope this call needs (`scope`); thrown before any request goes out |
 | `LinkedInApiException` | LinkedIn returned an error (`operation`, `status`, `body`) |
 
 All of them extend `LinkedInException`, so a single `catch (LinkedInException $e)`

@@ -49,11 +49,20 @@ The chain is `LinkedIn facade` → `LinkedInManager` → (`LinkedInOAuth` | `Lin
 - [Services/LinkedInOrganizations.php](src/Services/LinkedInOrganizations.php) — `GET /rest/organizationAcls`, the company pages the member administers.
 - [Models/LinkedInAccount.php](src/Models/LinkedInAccount.php) — the stored connection.
 
+### The config says what to ask for; the token says what you got
+
+This is the axis the whole package turns on. `config('linkedin.*')` decides which scopes are *requested*; `$account->scopes` records what LinkedIn actually *granted*. They drift apart the moment a LinkedIn app misses a product, and **the token always wins**. Every capability question must therefore be asked of the account (`hasScope()`, `canListOrganizations()`, `canPostAsOrganization()`), never of the config. Gate a UI on the config and you offer targets that publish into a 403.
+
+Two rules keep this honest, and both are easy to undo by accident:
+
+- **Never guess the granted scopes.** `connectFromCode()` records `$token['scope']`, falling back only to the scopes *that flow* requested. It must never fall back to `config`, which may have changed since the redirect. A wrong value here silently corrupts every check downstream.
+- **`hasScope()` and `lacksScope()` are not each other's negation.** Both are `false` when the scope set is unknown (an account from before 1.4). Offer features on `hasScope()` — promise only what you know. Refuse calls on `lacksScope()` — block only what you know will fail. Collapsing them into one method breaks either old accounts or the guards.
+
 ### Listing pages is opt-in, and the scope is the reason
 
-`LinkedIn::organizations()` needs `r_organization_admin`, which is only requested when `config('linkedin.organizations.enabled')` is on. It is off by default on purpose: apps that only hold "Share on LinkedIn" would get an OAuth error if the scope were always requested.
+`LinkedIn::organizations()` needs `r_organization_admin`, which is only requested when `config('linkedin.organizations.enabled')` is on. It is off by default on purpose: LinkedIn refuses the *entire* authorization over a single unauthorized scope, so an app that only holds "Share on LinkedIn" could not connect at all if the scope were always requested. That is also why `?profile_only=1` exists — asking for less is the only way through for an app without the Community Management API.
 
-Same trap as `organization_urn` below: **enabling the config does not upgrade an existing token.** A token minted before the flag was flipped has no `r_organization_admin`, so `organizations()` returns a 403 until the account is reconnected. When something 403s here, suspect the token's scope set, not the request.
+**Enabling the config does not upgrade an existing token.** A token minted before the flag was flipped has no `r_organization_admin`. Since 1.4 that no longer surfaces as a mystery 403: `organizations()` throws `LinkedInScopeMissing` before the request goes out. Do not "fix" a scope failure by retrying — a token never gains scopes; the account must be reconnected.
 
 The `organizationAcls` response decorates each ACL through a Rest.li projection; the organization object arrives under the tilde-suffixed key `organization~`. If the projection is ignored, that key is absent — `fetch()` falls back to the bare URN as the name, so callers always get a usable list.
 
@@ -61,7 +70,9 @@ The list is cached per account (`linkedin.organizations.cache_ttl`, 0 disables).
 
 ### Exceptions are typed; never match on the message
 
-Every failure throws a subclass of `LinkedInException`: `LinkedInNotConnected`, `LinkedInConnectionExpired`, `LinkedInConfigurationException` and `LinkedInApiException` (which carries `operation`, `status`, `body`, `isAuthorizationProblem()`).
+Every failure throws a subclass of `LinkedInException`: `LinkedInNotConnected`, `LinkedInConnectionExpired`, `LinkedInConfigurationException`, `LinkedInScopeMissing` (carries the `scope`) and `LinkedInApiException` (which carries `operation`, `status`, `body`, `isAuthorizationProblem()`).
+
+The one place a message *is* parsed is `AuthorizationDenial` — but that is LinkedIn's wire format on the OAuth callback, not our own text, and it is deliberately confined to that single class so host apps never string-match on `'scope'` themselves. It also HTML-decodes the description, which LinkedIn escapes (`&quot;`) and Blade would then escape a second time.
 
 This exists because the messages are English and **have already changed once** (1.1.0 translated the whole package). Host apps that show messages in another language must map on the *type*. So: when you add a throw site, give it the right type and add the operation constant — do not lean on the wording, and do not "helpfully" merge types back into a bare `LinkedInException`.
 
@@ -75,7 +86,7 @@ This exists because the messages are English and **have already changed once** (
 
 There is no separate organization token. `postAsOrganization()` uses the access token of the connected member and only sets a different `author` URN (from `config('linkedin.organization_urn')`). That only works if the token carries the `w_organization_social` scope and the member administers the page.
 
-The consequence that easily bites: **`scopes()` is derived dynamically from `organization_urn`.** If that config is filled in *after* connecting, the existing token does not carry `w_organization_social` and publishing fails — reconnecting is then required. A non-obvious coupling between config and token state.
+The consequence that easily bites: **`scopes()` is derived from config.** Fill in `organization_urn` *after* connecting and the existing token still has no `w_organization_social`. `LinkedInPublisher` guards on this — it refuses an `urn:li:organization:` author when the token provably lacks the scope — but the underlying coupling between config and token state remains, and reconnecting is the only cure.
 
 ### Token lifecycle
 

@@ -1,6 +1,7 @@
 <?php
 
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
+use Darvis\ApiLinkedin\Scopes;
 use Illuminate\Support\Facades\Http;
 
 it('registers the connect and callback routes', function () {
@@ -34,6 +35,27 @@ it('connects through the callback and stores the connection', function () {
         ->assertSessionHas('linkedin_status');
 
     expect(LinkedInAccount::current()?->member_urn)->toBe('urn:li:person:55555');
+});
+
+it('connects with the member scopes only on request', function () {
+    $response = $this->get(route('linkedin.connect', ['profile_only' => 1]));
+
+    expect($response->headers->get('Location'))
+        ->toContain('w_member_social')
+        ->not->toContain('w_organization_social')
+        ->and(session('linkedin_requested_scopes'))->toBe(Scopes::MEMBER);
+});
+
+it('points a scope denial at the missing product and the way out', function () {
+    $this->get(route('linkedin.callback', [
+        'error' => 'unauthorized_scope_error',
+        'error_description' => 'Scope &quot;w_organization_social&quot; is not authorized for your application',
+    ]))->assertSessionHas('linkedin_error');
+
+    expect(session('linkedin_error'))
+        ->toContain('Community Management API')
+        ->toContain('personal profile only')
+        ->not->toContain('&quot;');
 });
 
 it('rejects the callback on a state mismatch', function () {

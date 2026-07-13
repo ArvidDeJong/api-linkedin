@@ -4,7 +4,9 @@ namespace Darvis\ApiLinkedin\Services;
 
 use Darvis\ApiLinkedin\Exceptions\LinkedInApiException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInConnectionExpired;
+use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
+use Darvis\ApiLinkedin\Scopes;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -47,23 +49,23 @@ class LinkedInOAuth
     }
 
     /**
-     * The requested scopes. Organization scopes are only requested when a company
-     * page is configured or page listing is enabled — both require the Community
-     * Management API, so asking for them unconditionally would break apps that
-     * only have "Share on LinkedIn".
+     * The scopes to request by default. Organization scopes are only added when a
+     * company page is configured or page listing is enabled — both require the
+     * Community Management API, so asking for them unconditionally would lock out
+     * apps that only hold "Share on LinkedIn".
      *
      * @return list<string>
      */
     public function scopes(): array
     {
-        $scopes = ['openid', 'profile', 'w_member_social'];
+        $scopes = Scopes::MEMBER;
 
         if ($this->organizationEnabled() || $this->organizationListingEnabled()) {
-            $scopes[] = 'w_organization_social';
+            $scopes[] = Scopes::POST_AS_ORGANIZATION;
         }
 
         if ($this->organizationListingEnabled()) {
-            $scopes[] = 'r_organization_admin';
+            $scopes[] = Scopes::LIST_ORGANIZATIONS;
         }
 
         foreach ((array) config('linkedin.scopes', []) as $scope) {
@@ -80,21 +82,40 @@ class LinkedInOAuth
         return route(config('linkedin.routes.callback_name', 'linkedin.callback'));
     }
 
-    public function authorizationUrl(string $state): string
+    /**
+     * Build the URL to send the member to.
+     *
+     * Pass $scopes to request something other than the configured default —
+     * {@see Scopes::MEMBER} for a connection that works on any LinkedIn app, even
+     * one without the Community Management API. Without this argument the only way
+     * to narrow the request would be to mutate the config mid-request.
+     *
+     * @param  list<string>|null  $scopes
+     */
+    public function authorizationUrl(string $state, ?array $scopes = null): string
     {
         return self::AUTHORIZE_URL.'?'.http_build_query([
             'response_type' => 'code',
             'client_id' => config('linkedin.client_id'),
             'redirect_uri' => $this->redirectUri(),
             'state' => $state,
-            'scope' => implode(' ', $this->scopes()),
+            'scope' => implode(' ', $scopes ?? $this->scopes()),
         ]);
     }
 
     /**
      * Exchange the authorization code for an access token and store the account.
+     *
+     * `$requestedScopes` must be the set that was actually sent to
+     * {@see authorizationUrl()}; it is only used when LinkedIn omits `scope` from
+     * the token response. Leaving it out falls back to the configured scopes,
+     * which is a guess: the config may have changed since the redirect, or the
+     * flow may have deliberately asked for less. A wrong guess is worse than none,
+     * because the stored scopes are what every capability check leans on.
+     *
+     * @param  list<string>|null  $requestedScopes
      */
-    public function connectFromCode(string $code): LinkedInAccount
+    public function connectFromCode(string $code, ?array $requestedScopes = null): LinkedInAccount
     {
         $token = $this->requestToken([
             'grant_type' => 'authorization_code',
@@ -111,7 +132,7 @@ class LinkedInOAuth
                 'name' => $profile['name'] ?? 'LinkedIn member',
                 'access_token' => $token['access_token'],
                 'refresh_token' => $token['refresh_token'] ?? null,
-                'scopes' => $token['scope'] ?? implode(' ', $this->scopes()),
+                'scopes' => $token['scope'] ?? implode(' ', $requestedScopes ?? $this->scopes()),
                 'token_expires_at' => isset($token['expires_in'])
                     ? now()->addSeconds((int) $token['expires_in'])
                     : null,

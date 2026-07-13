@@ -6,22 +6,8 @@ use Darvis\ApiLinkedin\Exceptions\LinkedInConnectionExpired;
 use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInNotConnected;
 use Darvis\ApiLinkedin\Facades\LinkedIn;
-use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Services\LinkedInOAuth;
 use Illuminate\Support\Facades\Http;
-
-function account(array $attributes = []): LinkedInAccount
-{
-    return LinkedInAccount::create(array_merge([
-        'member_id' => '1',
-        'member_urn' => 'urn:li:person:1',
-        'name' => 'Tester',
-        'access_token' => 'token',
-        'refresh_token' => 'refresh',
-        'token_expires_at' => now()->addDays(30),
-        'refresh_token_expires_at' => now()->addYear(),
-    ], $attributes));
-}
 
 it('throws LinkedInNotConnected when nothing is connected', function () {
     LinkedIn::postAsMember('Text');

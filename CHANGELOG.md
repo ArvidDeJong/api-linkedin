@@ -4,6 +4,34 @@
 
 All notable changes to `darvis/api-linkedin` are documented here.
 
+## [1.4.0] - 2026-07-13
+
+The connection now knows what it may actually do. Until this release the package
+decided that from the **config**, while LinkedIn decides it from the **granted
+scopes** — and the two drift apart the moment a LinkedIn app misses a product. That
+gap made an app without the Community Management API impossible to connect at all,
+and made every company page it did offer publish into an unexplained 403.
+
+### Added
+
+- `Scopes` — the scopes the package works with, grouped by the LinkedIn product that grants them. `Scopes::MEMBER` is the set every app can hold.
+- Scope knowledge on `LinkedInAccount`: `grantedScopes()`, `knowsScopes()`, `hasScope()`, `lacksScope()`, `canPostAsOrganization()`, `canListOrganizations()`. `hasScope()` and `lacksScope()` are deliberately **not** each other's negation — both are `false` when the scopes are unknown, so the package never guesses.
+- `LinkedIn::canListOrganizations()` and `LinkedIn::canPostAsOrganization()` — gate your UI on these instead of on the config, or you offer targets that cannot be published to.
+- `LinkedInOAuth::authorizationUrl($state, $scopes)` and `connectFromCode($code, $requestedScopes)` take the scopes explicitly. Without this the only way to narrow a request was to mutate the config mid-request.
+- `?profile_only=1` on the built-in connect route asks for `Scopes::MEMBER` only, so an app without the Community Management API can still connect — on the member's profile. LinkedIn refuses the *entire* authorization over one unauthorized scope, so asking for less is the only way through.
+- `AuthorizationDenial::fromCallback($request)` reads a refused authorization: `description` (HTML-decoded — LinkedIn escapes it, and echoing it straight into Blade showed the entities), `isScopeProblem()`, `missingScope()` and `isRecoverableWithMemberScopes()`.
+- `LinkedInScopeMissing` — thrown *before* the request goes out when the stored scopes prove the call would come back as a 403. Carries the `scope` and names the missing LinkedIn product.
+- `linkedin.session.scopes_key` — where the built-in flow remembers the scopes it asked for.
+
+### Changed
+
+- `organizations()` and publishing as a company page now refuse up front when the token provably lacks the scope, instead of firing a request that returns a 403 that is indistinguishable from an expired token or a page you do not administer.
+- `connectFromCode()` no longer records the *configured* scopes when LinkedIn omits `scope` from the token response. It records the scopes actually requested for that flow; the config may have changed since the redirect, and a wrong guess is worse than none — every capability check leans on this column.
+
+### Upgrading
+
+Nothing breaks. A connection stored before 1.4 has no recorded scopes: `grantedScopes()` returns `null`, both `hasScope()` and `lacksScope()` return `false`, and no guard fires — such an account keeps working exactly as before. Reconnect it to unlock the capability checks.
+
 ## [1.3.0] - 2026-07-13
 
 ### Added

@@ -3,6 +3,7 @@
 namespace Darvis\ApiLinkedin\Models;
 
 use Carbon\CarbonInterface;
+use Darvis\ApiLinkedin\Scopes;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -51,6 +52,71 @@ class LinkedInAccount extends Model
     public static function current(): ?self
     {
         return static::query()->latest('id')->first();
+    }
+
+    /**
+     * The scopes LinkedIn granted this connection, or null when they are unknown
+     * (an account stored before 1.4, or a token response without a `scope`).
+     *
+     * This — not the config — is what the connection may actually do. The two
+     * drift apart the moment the LinkedIn app lacks a product: the config still
+     * asks for company pages while the granted token only covers the profile.
+     *
+     * @return list<string>|null
+     */
+    public function grantedScopes(): ?array
+    {
+        if (blank($this->scopes)) {
+            return null;
+        }
+
+        return array_values(array_filter(explode(' ', $this->scopes)));
+    }
+
+    /**
+     * Are the granted scopes known at all? When they are not, neither
+     * {@see hasScope()} nor {@see lacksScope()} can tell you anything.
+     */
+    public function knowsScopes(): bool
+    {
+        return $this->grantedScopes() !== null;
+    }
+
+    /**
+     * The scope was certainly granted. False when the scope set is unknown — so
+     * gate features you offer on this: only promise what you know you can do.
+     */
+    public function hasScope(string $scope): bool
+    {
+        return in_array($scope, $this->grantedScopes() ?? [], true);
+    }
+
+    /**
+     * The scope was certainly *not* granted. False when the scope set is unknown
+     * — so refuse calls on this: only block what you know will fail.
+     *
+     * Note that `hasScope()` and `lacksScope()` are both false when the scopes
+     * are unknown; they are deliberately not each other's negation.
+     */
+    public function lacksScope(string $scope): bool
+    {
+        return $this->knowsScopes() && ! $this->hasScope($scope);
+    }
+
+    /**
+     * This connection may publish on behalf of a company page.
+     */
+    public function canPostAsOrganization(): bool
+    {
+        return $this->hasScope(Scopes::POST_AS_ORGANIZATION);
+    }
+
+    /**
+     * This connection may list the company pages the member administers.
+     */
+    public function canListOrganizations(): bool
+    {
+        return $this->hasScope(Scopes::LIST_ORGANIZATIONS);
     }
 
     /**

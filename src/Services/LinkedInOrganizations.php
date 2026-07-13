@@ -4,7 +4,9 @@ namespace Darvis\ApiLinkedin\Services;
 
 use Darvis\ApiLinkedin\Exceptions\LinkedInApiException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInException;
+use Darvis\ApiLinkedin\Exceptions\LinkedInScopeMissing;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
+use Darvis\ApiLinkedin\Scopes;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -27,10 +29,19 @@ class LinkedInOrganizations
      *
      * @return list<array{urn: string, id: string, name: string, vanity_name: string|null}>
      *
+     * @throws LinkedInScopeMissing when the token provably lacks `r_organization_admin`.
      * @throws LinkedInException when the connection expired or LinkedIn refuses.
      */
     public function all(LinkedInAccount $account, bool $fresh = false): array
     {
+        // Enabling the config does not upgrade an existing token: one minted before
+        // the flag was flipped — or by an app without the Community Management API
+        // — simply has no `r_organization_admin`. Say so, instead of letting the
+        // call come back as an unexplained 403.
+        if ($account->lacksScope(Scopes::LIST_ORGANIZATIONS)) {
+            throw new LinkedInScopeMissing(Scopes::LIST_ORGANIZATIONS);
+        }
+
         $ttl = (int) config('linkedin.organizations.cache_ttl', 3600);
 
         if ($ttl <= 0) {

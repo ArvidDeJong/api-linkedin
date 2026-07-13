@@ -4,8 +4,11 @@ namespace Darvis\ApiLinkedin\Services;
 
 use Darvis\ApiLinkedin\Exceptions\LinkedInApiException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInException;
+use Darvis\ApiLinkedin\Exceptions\LinkedInScopeMissing;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
+use Darvis\ApiLinkedin\Scopes;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 /**
  * Publishes posts through the LinkedIn Posts API (`/rest/posts`) on behalf of a
@@ -23,10 +26,14 @@ class LinkedInPublisher
      *
      * @return array{urn: string, permalink: string}
      *
+     * @throws LinkedInScopeMissing when the connection provably cannot post as
+     *                              this author.
      * @throws LinkedInException on an expired connection or an API error.
      */
     public function publish(LinkedInAccount $account, string $authorUrn, string $commentary): array
     {
+        $this->guardAuthor($account, $authorUrn);
+
         $token = $this->oauth->freshAccessToken($account);
 
         $response = Http::withToken($token)
@@ -61,6 +68,23 @@ class LinkedInPublisher
             'urn' => $urn,
             'permalink' => $urn !== '' ? 'https://www.linkedin.com/feed/update/'.$urn.'/' : '',
         ];
+    }
+
+    /**
+     * Posting as a company page needs `w_organization_social`. When the stored
+     * scopes prove the token does not carry it, refuse here: LinkedIn would answer
+     * with a 403, and a 403 is indistinguishable from an expired token or a page
+     * the member does not administer.
+     *
+     * @throws LinkedInScopeMissing
+     */
+    private function guardAuthor(LinkedInAccount $account, string $authorUrn): void
+    {
+        $postsAsOrganization = Str::startsWith($authorUrn, 'urn:li:organization:');
+
+        if ($postsAsOrganization && $account->lacksScope(Scopes::POST_AS_ORGANIZATION)) {
+            throw new LinkedInScopeMissing(Scopes::POST_AS_ORGANIZATION);
+        }
     }
 
     /**
