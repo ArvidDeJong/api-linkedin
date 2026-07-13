@@ -27,6 +27,18 @@ vendor/bin/pest --filter="refreshes an expired token"   # one test
 
 No linter or formatter is configured in this package.
 
+## Releasing
+
+The package is published on Packagist as `darvis/api-linkedin`; a GitHub webhook pushes every tag on `ArvidDeJong/api-linkedin` to Packagist automatically. A release is therefore just an annotated tag on `main`:
+
+```bash
+git tag -a v1.2.0 -m "v1.2.0 — ..." && git push origin main --follow-tags
+```
+
+**Never add a `version` field to composer.json.** Packagist derives the version from the tag and *skips* any tag whose number does not match a hardcoded `version` (`Skipped tag v1.1.0, tag (1.1.0.0) does not match version (1.0.0.0) in composer.json`). That silently produced a release that never landed. The field was removed for this reason; keep it out.
+
+Update both changelogs ([CHANGELOG.md](CHANGELOG.md) and [docs/nl/CHANGELOG.md](docs/nl/CHANGELOG.md)) in the same commit as the release.
+
 ## Architecture
 
 The chain is `LinkedIn facade` → `LinkedInManager` → (`LinkedInOAuth` | `LinkedInPublisher`) → `LinkedInAccount`. All three services are singletons; `LinkedInManager` is aliased as `'linkedin'` in the container.
