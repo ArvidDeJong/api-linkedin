@@ -140,6 +140,42 @@ and LinkedIn builds the link preview itself from the Open Graph tags of that pag
 > Tip: run the publishing in a queued job, so a slow or failing API call does not
 > block your request.
 
+### With your own image: an article card
+
+Letting LinkedIn crawl your Open Graph tags works, but only if LinkedIn can reach
+the page, it caches the result per URL, and you have no say over the image. Attach
+an `Article` instead: you supply the thumbnail, and the whole card stays clickable
+through to your site.
+
+```php
+use Darvis\ApiLinkedin\Article;
+use Darvis\ApiLinkedin\Facades\LinkedIn;
+
+$author = LinkedIn::account()->member_urn;
+
+$article = Article::to('https://example.com/blog/my-article')
+    ->withTitle('My article')
+    ->withDescription('A short summary.')
+    ->withThumbnail(LinkedIn::uploadImage($author, file_get_contents($path), 'image/png'));
+
+LinkedIn::postAsMember("New blog article!", $article);
+```
+
+Two things that bite if you skip them:
+
+- **The image owner must be the author of the post.** `uploadImage()` takes the
+  owner URN for that reason — posting as a company page means uploading as that
+  company page. Sharing one upload across authors does not work.
+- **Uploading needs no extra scope.** It rides on the same `w_member_social` /
+  `w_organization_social` the post itself needs, so no reconnect is required.
+
+The thumbnail is optional: an `Article` without one still renders a clickable card,
+and LinkedIn falls back to crawling the page for an image. Omit the `Article`
+entirely and you get exactly the pre-1.5 behaviour.
+
+`uploadImage()` takes the raw bytes, not a path — the package does no filesystem
+work, so the image may come from disk, S3, or anywhere else.
+
 ## Listing your company pages
 
 Do you administer several company pages and want the user to pick one? Turn the

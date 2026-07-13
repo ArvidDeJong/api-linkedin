@@ -100,12 +100,23 @@ Tokens are `encrypted` casts, so the application needs an `APP_KEY` and the colu
 
 The built-in routes are registered in `LinkedInServiceProvider::registerRoutes()` with the prefix/middleware from config; the route names themselves come from config inside [routes/web.php](routes/web.php).
 
+### Uploading an image is two calls, to two different hosts
+
+`LinkedInImages::upload()` first asks `/rest/images?action=initializeUpload` for a short-lived, single-use `uploadUrl`, then PUTs the bytes to that URL. That second call goes to LinkedIn's upload host, **not** to the REST API: it takes no `LinkedIn-Version` header, and sending one makes it fail. A test asserts the absence of that header — do not "fix" it by adding one for consistency.
+
+Two more rules, both enforced by LinkedIn and neither obvious:
+
+- **The image's `owner` must equal the post's `author`.** That is why `uploadImage()` takes an owner URN instead of deriving it from the account. Posting the same article to a profile *and* two company pages means three uploads, one per author. Reusing an image URN across authors is rejected.
+- **Uploading needs no scope of its own.** It rides on the `w_member_social` / `w_organization_social` the post already requires, so adding image support never forces a reconnect.
+
+`Article` carries the thumbnail as an image *URN*, not a path or bytes — the package does no filesystem work, deliberately, so callers stay free to source the image anywhere. `toArray()` drops empty fields because LinkedIn rejects a `thumbnail` key that is present but blank.
+
 ### LinkedIn quirks encoded in the code
 
 - **Commentary escaping** (`LinkedInPublisher::escapeCommentary()`): the Posts API reserves `| { } @ [ ] ( ) < > # * _ ~` and `\`. The backslash is replaced first, otherwise existing backslashes get double-escaped — keep that order intact.
 - **The post URN comes from the `x-restli-id` response header**, not the body (the body is empty on a 201).
 - **The `LinkedIn-Version` header** (`config('linkedin.api_version')`, format `YYYYMM`) is required on `/rest/*` and expires after roughly a year. A suddenly failing publish is often an expired version, not a bug.
-- Link previews are not sent along: a URL in the text makes LinkedIn fetch the Open Graph tags itself.
+- Link previews are not sent along *unless an `Article` is attached*: a bare URL in the text makes LinkedIn fetch the Open Graph tags itself. That fallback still exists and is the behaviour when `content` is absent from the payload.
 
 ### The table name is configurable
 

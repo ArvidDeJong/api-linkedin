@@ -19,6 +19,8 @@ class LinkedInApiException extends LinkedInException
 
     public const OPERATION_ORGANIZATIONS = 'organizations';
 
+    public const OPERATION_IMAGE = 'image';
+
     public function __construct(
         public readonly string $operation,
         public readonly int $status,

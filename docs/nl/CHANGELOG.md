@@ -4,6 +4,24 @@
 
 Alle noemenswaardige wijzigingen aan `darvis/api-linkedin` worden hier bijgehouden.
 
+## [1.5.0] - 2026-07-13
+
+Je eigen afbeelding meesturen. Tot nu toe kreeg een gedeelde link de preview die
+LinkedIn zelf uit de Open Graph-tags van de pagina wist te schrapen — wat vereist dat
+LinkedIn de pagina kán bereiken, per URL gecachet wordt, en je geen zeggenschap geeft
+over het plaatje.
+
+### Toegevoegd
+
+- `Article` — een linkkaart om aan een post te hangen: `source`, `title`, `description` en een `thumbnail` die jij levert. De kaart blijft klikbaar naar je site, anders dan bij een image post, waar de link alleen als platte tekst in de begeleidende tekst overleeft.
+- `LinkedIn::uploadImage($ownerUrn, $contents, $contentType)` en de service `LinkedInImages`. Neemt de ruwe bytes aan, geen pad: het package doet geen filesystem-werk, dus de afbeelding mag van schijf komen, uit S3, of waar dan ook. De eigenaar moet de auteur zijn waaronder de post verschijnt — LinkedIn weigert een afbeelding die van iemand anders is. **Geen nieuwe scope**: uploaden leunt op de `w_member_social` / `w_organization_social` die de post toch al nodig heeft, dus opnieuw koppelen hoeft niet.
+- `postAsMember()`, `postAsOrganization()` en `publish()` nemen een optionele `Article` aan.
+- `LinkedInApiException::OPERATION_IMAGE` voor fouten tijdens een upload.
+
+### Gewijzigd
+
+- Niets. Laat je de `Article` weg, dan is de payload byte-voor-byte wat hij was, dus LinkedIn bouwt de preview nog precies zoals eerst uit de Open Graph-tags.
+
 ## [1.4.0] - 2026-07-13
 
 De koppeling weet nu wat ze daadwerkelijk mag. Tot deze release leidde het package

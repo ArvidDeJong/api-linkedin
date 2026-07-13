@@ -2,6 +2,7 @@
 
 namespace Darvis\ApiLinkedin\Services;
 
+use Darvis\ApiLinkedin\Article;
 use Darvis\ApiLinkedin\Exceptions\LinkedInApiException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInScopeMissing;
@@ -24,35 +25,50 @@ class LinkedInPublisher
     /**
      * Publish a post on behalf of $authorUrn with the given commentary.
      *
+     * Pass an $article to attach a link card with your own thumbnail. Without it,
+     * LinkedIn builds a preview itself from the Open Graph tags of any URL in the
+     * commentary — which needs LinkedIn to be able to reach the page, and gives
+     * you no say over the image.
+     *
      * @return array{urn: string, permalink: string}
      *
      * @throws LinkedInScopeMissing when the connection provably cannot post as
      *                              this author.
      * @throws LinkedInException on an expired connection or an API error.
      */
-    public function publish(LinkedInAccount $account, string $authorUrn, string $commentary): array
-    {
+    public function publish(
+        LinkedInAccount $account,
+        string $authorUrn,
+        string $commentary,
+        ?Article $article = null,
+    ): array {
         $this->guardAuthor($account, $authorUrn);
 
         $token = $this->oauth->freshAccessToken($account);
+
+        $payload = [
+            'author' => $authorUrn,
+            'commentary' => $this->escapeCommentary($commentary),
+            'visibility' => 'PUBLIC',
+            'distribution' => [
+                'feedDistribution' => 'MAIN_FEED',
+                'targetEntities' => [],
+                'thirdPartyDistributionChannels' => [],
+            ],
+            'lifecycleState' => 'PUBLISHED',
+            'isReshareDisabledByAuthor' => false,
+        ];
+
+        if ($article !== null) {
+            $payload['content'] = ['article' => $article->toArray()];
+        }
 
         $response = Http::withToken($token)
             ->withHeaders([
                 'LinkedIn-Version' => (string) config('linkedin.api_version'),
                 'X-Restli-Protocol-Version' => '2.0.0',
             ])
-            ->post(self::POSTS_URL, [
-                'author' => $authorUrn,
-                'commentary' => $this->escapeCommentary($commentary),
-                'visibility' => 'PUBLIC',
-                'distribution' => [
-                    'feedDistribution' => 'MAIN_FEED',
-                    'targetEntities' => [],
-                    'thirdPartyDistributionChannels' => [],
-                ],
-                'lifecycleState' => 'PUBLISHED',
-                'isReshareDisabledByAuthor' => false,
-            ]);
+            ->post(self::POSTS_URL, $payload);
 
         if ($response->failed()) {
             throw LinkedInApiException::from(

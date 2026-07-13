@@ -140,6 +140,43 @@ tekst; LinkedIn bouwt de linkpreview zelf uit de Open Graph-tags van de pagina.
 > Tip: draai het posten in een queued job, zodat een trage of falende API-call je
 > request niet blokkeert.
 
+### Met je eigen afbeelding: een artikelkaart
+
+LinkedIn je Open Graph-tags laten ophalen werkt, maar alleen als LinkedIn de pagina
+kán bereiken, het resultaat wordt per URL gecachet, en je hebt geen zeggenschap over
+de afbeelding. Hang er een `Article` aan: jij levert de thumbnail, en de hele kaart
+blijft klikbaar naar je site.
+
+```php
+use Darvis\ApiLinkedin\Article;
+use Darvis\ApiLinkedin\Facades\LinkedIn;
+
+$author = LinkedIn::account()->member_urn;
+
+$article = Article::to('https://example.com/blog/mijn-artikel')
+    ->withTitle('Mijn artikel')
+    ->withDescription('Een korte samenvatting.')
+    ->withThumbnail(LinkedIn::uploadImage($author, file_get_contents($pad), 'image/png'));
+
+LinkedIn::postAsMember('Nieuw blogartikel!', $article);
+```
+
+Twee dingen die je opbreken als je ze overslaat:
+
+- **De eigenaar van de afbeelding moet de auteur van de post zijn.** Daarom neemt
+  `uploadImage()` een owner-URN: post je als bedrijfspagina, dan upload je ook als
+  die bedrijfspagina. Eén upload hergebruiken voor meerdere auteurs werkt niet.
+- **Uploaden vraagt geen extra scope.** Het leunt op dezelfde `w_member_social` /
+  `w_organization_social` die de post zelf al nodig heeft, dus opnieuw koppelen
+  hoeft niet.
+
+De thumbnail is optioneel: een `Article` zonder thumbnail levert nog steeds een
+klikbare kaart op, en LinkedIn valt dan terug op het zelf ophalen van een afbeelding.
+Laat je de `Article` helemaal weg, dan krijg je exact het gedrag van vóór 1.5.
+
+`uploadImage()` neemt de ruwe bytes aan, geen pad — het package doet geen
+filesystem-werk, dus de afbeelding mag van schijf komen, uit S3, of waar dan ook.
+
 ## Je bedrijfspagina's opvragen
 
 Beheer je meerdere bedrijfspagina's en wil je de gebruiker laten kiezen? Zet het
