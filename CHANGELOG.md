@@ -4,6 +4,18 @@
 
 All notable changes to `darvis/api-linkedin` are documented here.
 
+## [1.2.0] - 2026-07-13
+
+### Added
+
+- `LinkedIn::organizations()` lists the company pages the connected member administers (name, URN, vanity name), through the `organizationAcls` endpoint. The list is cached (`linkedin.organizations.cache_ttl`, one hour by default); `organizations(fresh: true)` and `forgetOrganizations()` bypass or clear it.
+- `linkedin.organizations.enabled` — off by default. Turning it on adds the `r_organization_admin` scope (and `w_organization_social`) to the authorization request. **Requires reconnecting**: tokens issued earlier do not carry the scope.
+- New service `LinkedInOrganizations`, registered as a singleton.
+
+### Changed
+
+- `postAsOrganization()` takes an optional second argument: the URN of the page to post on. Without it the default from `linkedin.organization_urn` is used, so existing calls keep working.
+
 ## [1.1.0] - 2026-07-13
 
 ### Changed

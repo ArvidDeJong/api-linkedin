@@ -57,6 +57,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Listing company pages
+    |--------------------------------------------------------------------------
+    |
+    | Enable this to let LinkedIn::organizations() list the company pages the
+    | connected member administers, so a user can pick a target instead of
+    | hardcoding one URN. It adds the `r_organization_admin` scope (and
+    | `w_organization_social`) to the authorization request, which requires
+    | Community Management API access.
+    |
+    | Note: after turning this on you must reconnect. Existing tokens were issued
+    | without the scope and cannot list pages.
+    |
+    */
+
+    'organizations' => [
+        'enabled' => env('LINKEDIN_ORGANIZATIONS_ENABLED', false),
+        // Seconds to cache the list; company pages rarely change. 0 = no cache.
+        'cache_ttl' => env('LINKEDIN_ORGANIZATIONS_CACHE_TTL', 3600),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Database table
     |--------------------------------------------------------------------------
     */

@@ -8,6 +8,7 @@ LinkedIn Posts API. Zonder externe dependencies (alleen de ingebouwde HTTP-clien
 
 - OAuth 2.0 authorization-code flow met automatische token-refresh
 - Posten namens een lid (`w_member_social`) of een organisatie (`w_organization_social`)
+- Je bedrijfspagina's opvragen en per bericht kiezen waar het heen gaat
 - Versleutelde tokenopslag in een `linkedin_accounts`-tabel
 - Optionele, kant-en-klare connect/callback-routes
 - `LinkedIn`-facade voor een one-liner post
@@ -65,15 +66,48 @@ use Darvis\ApiLinkedin\Facades\LinkedIn;
 // Op je persoonlijke profiel
 LinkedIn::postAsMember("Nieuw blogartikel!\n\nhttps://example.com/blog/mijn-artikel");
 
-// Op de bedrijfspagina
+// Op de standaard-bedrijfspagina (linkedin.organization_urn)
 LinkedIn::postAsOrganization('Bedrijfsnieuws met een link https://example.com');
+
+// Op een specifieke bedrijfspagina
+LinkedIn::postAsOrganization('Bedrijfsnieuws', 'urn:li:organization:1234567');
 ```
 
-Beide geven `['urn' => '...', 'permalink' => '...']` terug. Zet een URL in de tekst;
-LinkedIn bouwt de linkpreview zelf uit de Open Graph-tags van de pagina.
+Alle drie geven `['urn' => '...', 'permalink' => '...']` terug. Zet een URL in de
+tekst; LinkedIn bouwt de linkpreview zelf uit de Open Graph-tags van de pagina.
 
 > Tip: draai het posten in een queued job, zodat een trage of falende API-call je
 > request niet blokkeert.
+
+## Je bedrijfspagina's opvragen
+
+Beheer je meerdere bedrijfspagina's en wil je de gebruiker laten kiezen? Zet het
+opvragen aan en vraag LinkedIn welke pagina's het gekoppelde lid beheert:
+
+```dotenv
+LINKEDIN_ORGANIZATIONS_ENABLED=true
+```
+
+```php
+LinkedIn::organizations();
+// [
+//   ['urn' => 'urn:li:organization:42', 'id' => '42', 'name' => 'Acme BV', 'vanity_name' => 'acme'],
+//   ['urn' => 'urn:li:organization:99', 'id' => '99', 'name' => 'Acme Labs', 'vanity_name' => 'acme-labs'],
+// ]
+
+LinkedIn::organizations(fresh: true); // cache overslaan
+LinkedIn::forgetOrganizations();      // cache legen
+```
+
+Combineer dit met `postAsOrganization($tekst, $urn)` om per bericht een
+bestemming te laten kiezen.
+
+> **Twee dingen om te weten.** Opvragen vereist de scope `r_organization_admin`,
+> die alleen wordt aangevraagd als deze instelling aan staat en die
+> Community Management API-toegang vereist. Zet je 'm áán ná het koppelen, dan
+> heeft je bestaande token die scope niet — je moet dan opnieuw koppelen. De
+> lijst wordt `linkedin.organizations.cache_ttl` seconden gecachet (standaard een
+> uur).
 
 ### Via de services (dependency injection)
 
@@ -98,7 +132,9 @@ Alle sleutels staan in `config/linkedin.php`. Belangrijk:
 
 | Sleutel | Omschrijving |
 | --- | --- |
-| `organization_urn` | URN bedrijfspagina; leeg = alleen profiel |
+| `organization_urn` | Standaard-bedrijfspagina (URN); leeg = alleen profiel |
+| `organizations.enabled` | Laat `LinkedIn::organizations()` je pagina's opvragen (voegt `r_organization_admin` toe) |
+| `organizations.cache_ttl` | Seconden dat die lijst gecachet wordt; `0` = niet cachen |
 | `api_version` | LinkedIn API-versie (JJJJMM) |
 | `routes.enabled` | Ingebouwde connect/callback-routes aan/uit |
 | `routes.prefix` / `routes.middleware` | Prefix en middleware van die routes |

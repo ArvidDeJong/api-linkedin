@@ -30,7 +30,7 @@ class LinkedInOAuth
     }
 
     /**
-     * Is a company page configured to post on behalf of?
+     * Is a default company page configured to post on behalf of?
      */
     public function organizationEnabled(): bool
     {
@@ -38,8 +38,18 @@ class LinkedInOAuth
     }
 
     /**
-     * The requested scopes. `w_organization_social` is only requested when a
-     * company page is configured (requires the Community Management API).
+     * May we list the company pages the member administers?
+     */
+    public function organizationListingEnabled(): bool
+    {
+        return (bool) config('linkedin.organizations.enabled', false);
+    }
+
+    /**
+     * The requested scopes. Organization scopes are only requested when a company
+     * page is configured or page listing is enabled — both require the Community
+     * Management API, so asking for them unconditionally would break apps that
+     * only have "Share on LinkedIn".
      *
      * @return list<string>
      */
@@ -47,8 +57,12 @@ class LinkedInOAuth
     {
         $scopes = ['openid', 'profile', 'w_member_social'];
 
-        if ($this->organizationEnabled()) {
+        if ($this->organizationEnabled() || $this->organizationListingEnabled()) {
             $scopes[] = 'w_organization_social';
+        }
+
+        if ($this->organizationListingEnabled()) {
+            $scopes[] = 'r_organization_admin';
         }
 
         foreach ((array) config('linkedin.scopes', []) as $scope) {

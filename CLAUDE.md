@@ -41,12 +41,23 @@ Update both changelogs ([CHANGELOG.md](CHANGELOG.md) and [docs/nl/CHANGELOG.md](
 
 ## Architecture
 
-The chain is `LinkedIn facade` → `LinkedInManager` → (`LinkedInOAuth` | `LinkedInPublisher`) → `LinkedInAccount`. All three services are singletons; `LinkedInManager` is aliased as `'linkedin'` in the container.
+The chain is `LinkedIn facade` → `LinkedInManager` → (`LinkedInOAuth` | `LinkedInPublisher` | `LinkedInOrganizations`) → `LinkedInAccount`. All services are singletons; `LinkedInManager` is aliased as `'linkedin'` in the container.
 
-- [LinkedInManager.php](src/LinkedInManager.php) — ergonomic front (`postAsMember()`, `postAsOrganization()`, `publish()`). Contains no HTTP logic; resolves the account and delegates.
+- [LinkedInManager.php](src/LinkedInManager.php) — ergonomic front (`postAsMember()`, `postAsOrganization()`, `publish()`, `organizations()`). Contains no HTTP logic; resolves the account and delegates.
 - [Services/LinkedInOAuth.php](src/Services/LinkedInOAuth.php) — authorization URL, code exchange, profile fetch, token refresh.
 - [Services/LinkedInPublisher.php](src/Services/LinkedInPublisher.php) — `POST /rest/posts`.
+- [Services/LinkedInOrganizations.php](src/Services/LinkedInOrganizations.php) — `GET /rest/organizationAcls`, the company pages the member administers.
 - [Models/LinkedInAccount.php](src/Models/LinkedInAccount.php) — the stored connection.
+
+### Listing pages is opt-in, and the scope is the reason
+
+`LinkedIn::organizations()` needs `r_organization_admin`, which is only requested when `config('linkedin.organizations.enabled')` is on. It is off by default on purpose: apps that only hold "Share on LinkedIn" would get an OAuth error if the scope were always requested.
+
+Same trap as `organization_urn` below: **enabling the config does not upgrade an existing token.** A token minted before the flag was flipped has no `r_organization_admin`, so `organizations()` returns a 403 until the account is reconnected. When something 403s here, suspect the token's scope set, not the request.
+
+The `organizationAcls` response decorates each ACL through a Rest.li projection; the organization object arrives under the tilde-suffixed key `organization~`. If the projection is ignored, that key is absent — `fetch()` falls back to the bare URN as the name, so callers always get a usable list.
+
+The list is cached per account (`linkedin.organizations.cache_ttl`, 0 disables). Anything that invalidates page membership should call `forgetOrganizations()`.
 
 ### One global connection, not one per user
 

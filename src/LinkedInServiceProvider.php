@@ -3,6 +3,7 @@
 namespace Darvis\ApiLinkedin;
 
 use Darvis\ApiLinkedin\Services\LinkedInOAuth;
+use Darvis\ApiLinkedin\Services\LinkedInOrganizations;
 use Darvis\ApiLinkedin\Services\LinkedInPublisher;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -15,6 +16,7 @@ class LinkedInServiceProvider extends ServiceProvider
 
         $this->app->singleton(LinkedInOAuth::class);
         $this->app->singleton(LinkedInPublisher::class);
+        $this->app->singleton(LinkedInOrganizations::class);
         $this->app->singleton(LinkedInManager::class);
         $this->app->alias(LinkedInManager::class, 'linkedin');
     }

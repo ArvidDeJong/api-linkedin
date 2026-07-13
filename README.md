@@ -8,6 +8,7 @@ LinkedIn Posts API. Without external dependencies (only the built-in HTTP client
 
 - OAuth 2.0 authorization code flow with automatic token refresh
 - Post on behalf of a member (`w_member_social`) or an organization (`w_organization_social`)
+- List the company pages you administer and pick one per post
 - Encrypted token storage in a `linkedin_accounts` table
 - Optional, ready-to-use connect/callback routes
 - `LinkedIn` facade for a one-liner post
@@ -65,15 +66,47 @@ use Darvis\ApiLinkedin\Facades\LinkedIn;
 // On your personal profile
 LinkedIn::postAsMember("New blog article!\n\nhttps://example.com/blog/my-article");
 
-// On the company page
+// On the default company page (linkedin.organization_urn)
 LinkedIn::postAsOrganization('Company news with a link https://example.com');
+
+// On a specific company page
+LinkedIn::postAsOrganization('Company news', 'urn:li:organization:1234567');
 ```
 
-Both return `['urn' => '...', 'permalink' => '...']`. Put a URL in the text and
-LinkedIn builds the link preview itself from the Open Graph tags of that page.
+All of these return `['urn' => '...', 'permalink' => '...']`. Put a URL in the text
+and LinkedIn builds the link preview itself from the Open Graph tags of that page.
 
 > Tip: run the publishing in a queued job, so a slow or failing API call does not
 > block your request.
+
+## Listing your company pages
+
+Do you administer several company pages and want the user to pick one? Turn the
+listing on and ask LinkedIn which pages the connected member administers:
+
+```dotenv
+LINKEDIN_ORGANIZATIONS_ENABLED=true
+```
+
+```php
+LinkedIn::organizations();
+// [
+//   ['urn' => 'urn:li:organization:42', 'id' => '42', 'name' => 'Acme BV', 'vanity_name' => 'acme'],
+//   ['urn' => 'urn:li:organization:99', 'id' => '99', 'name' => 'Acme Labs', 'vanity_name' => 'acme-labs'],
+// ]
+
+LinkedIn::organizations(fresh: true); // bypass the cache
+LinkedIn::forgetOrganizations();      // drop the cached list
+```
+
+Combine it with `postAsOrganization($text, $urn)` to let a user choose a target
+per post.
+
+> **Two things to know.** Listing requires the `r_organization_admin` scope, which
+> is only requested when this setting is on and requires Community Management API
+> access. Turning it on **after** connecting means your existing token does not
+> carry the scope — you have to reconnect. The list is cached for
+> `linkedin.organizations.cache_ttl` seconds (one hour by default).
 
 ### Through the services (dependency injection)
 
@@ -95,7 +128,9 @@ All keys live in `config/linkedin.php`. The important ones:
 
 | Key | Description |
 | --- | --- |
-| `organization_urn` | Company page URN; empty = profile only |
+| `organization_urn` | Default company page URN; empty = profile only |
+| `organizations.enabled` | Allow `LinkedIn::organizations()` to list your pages (adds `r_organization_admin`) |
+| `organizations.cache_ttl` | Seconds to cache that list; `0` = no cache |
 | `api_version` | LinkedIn API version (YYYYMM) |
 | `routes.enabled` | Turn the built-in connect/callback routes on/off |
 | `routes.prefix` / `routes.middleware` | Prefix and middleware of those routes |
