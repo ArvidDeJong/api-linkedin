@@ -4,8 +4,8 @@ use Darvis\ApiLinkedin\Http\Controllers\LinkedInController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| De ingebouwde OAuth-routes. Prefix, middleware en routenamen komen uit
-| config/linkedin.php. Uitschakelbaar via `linkedin.routes.enabled`.
+| The built-in OAuth routes. Prefix, middleware and route names come from
+| config/linkedin.php. Can be disabled through `linkedin.routes.enabled`.
 */
 
 Route::get('connect', [LinkedInController::class, 'connect'])

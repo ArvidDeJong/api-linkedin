@@ -1,23 +1,25 @@
 # darvis/api-linkedin
 
-Universele Laravel-koppeling om berichten op **LinkedIn** te plaatsen — op je
-**persoonlijke profiel** én op een **bedrijfspagina** — via OAuth 2.0 en de
-LinkedIn Posts API. Zonder externe dependencies (alleen de ingebouwde HTTP-client).
+> 🇳🇱 [Nederlandse documentatie](docs/nl/README.md)
 
-- OAuth 2.0 authorization-code flow met automatische token-refresh
-- Posten namens een lid (`w_member_social`) of een organisatie (`w_organization_social`)
-- Versleutelde tokenopslag in een `linkedin_accounts`-tabel
-- Optionele, kant-en-klare connect/callback-routes
-- `LinkedIn`-facade voor een one-liner post
+Universal Laravel integration for publishing posts on **LinkedIn** — both on your
+**personal profile** and on a **company page** — through OAuth 2.0 and the
+LinkedIn Posts API. Without external dependencies (only the built-in HTTP client).
 
-## Installatie
+- OAuth 2.0 authorization code flow with automatic token refresh
+- Post on behalf of a member (`w_member_social`) or an organization (`w_organization_social`)
+- Encrypted token storage in a `linkedin_accounts` table
+- Optional, ready-to-use connect/callback routes
+- `LinkedIn` facade for a one-liner post
+
+## Installation
 
 ```bash
 composer require darvis/api-linkedin
 ```
 
-Publiceer eventueel de config en migratie (de migratie wordt ook automatisch
-geladen):
+Optionally publish the config and the migration (the migration is loaded
+automatically as well):
 
 ```bash
 php artisan vendor:publish --tag=linkedin-config
@@ -25,55 +27,55 @@ php artisan vendor:publish --tag=linkedin-migrations
 php artisan migrate
 ```
 
-## LinkedIn-app instellen
+## Setting up the LinkedIn app
 
-1. Maak een app op [linkedin.com/developers/apps](https://www.linkedin.com/developers/apps).
-2. Vraag de producten **Share on LinkedIn** (profiel) en/of **Community Management API** (bedrijfspagina) aan.
-3. Zet de redirect-URL op `https://jouw-domein.test/linkedin/callback` (of jouw eigen callback-route).
-4. Vul je `.env`:
+1. Create an app at [linkedin.com/developers/apps](https://www.linkedin.com/developers/apps).
+2. Request the products **Share on LinkedIn** (profile) and/or **Community Management API** (company page).
+3. Set the redirect URL to `https://your-domain.test/linkedin/callback` (or your own callback route).
+4. Fill in your `.env`:
 
 ```dotenv
 LINKEDIN_CLIENT_ID=...
 LINKEDIN_CLIENT_SECRET=...
-# Bedrijfspagina — laat leeg om alleen op je profiel te posten
+# Company page — leave empty to post on your profile only
 LINKEDIN_ORGANIZATION_URN=urn:li:organization:1234567
-# Geldige, recente API-versie (JJJJMM)
+# Valid, recent API version (YYYYMM)
 LINKEDIN_API_VERSION=202601
 ```
 
-## Koppelen
+## Connecting
 
-Stuur de gebruiker naar de ingebouwde connect-route:
+Send the user to the built-in connect route:
 
 ```blade
-<a href="{{ route('linkedin.connect') }}">Verbind met LinkedIn</a>
+<a href="{{ route('linkedin.connect') }}">Connect with LinkedIn</a>
 ```
 
-Na afloop wordt teruggestuurd (zie `linkedin.routes.redirect_to`) met een
-flash-bericht in `session('linkedin_status')` of `session('linkedin_error')`.
+Afterwards the user is redirected back (see `linkedin.routes.redirect_to`) with a
+flash message in `session('linkedin_status')` or `session('linkedin_error')`.
 
-Wil je de flow zelf bedraden? Zet `linkedin.routes.enabled` op `false` en gebruik
-`LinkedIn::authorizationUrl($state)` en `LinkedIn::connectFromCode($code)`.
+Want to wire the flow yourself? Set `linkedin.routes.enabled` to `false` and use
+`LinkedIn::authorizationUrl($state)` and `LinkedIn::connectFromCode($code)`.
 
-## Posten
+## Publishing
 
 ```php
 use Darvis\ApiLinkedin\Facades\LinkedIn;
 
-// Op je persoonlijke profiel
-LinkedIn::postAsMember("Nieuw blogartikel!\n\nhttps://example.com/blog/mijn-artikel");
+// On your personal profile
+LinkedIn::postAsMember("New blog article!\n\nhttps://example.com/blog/my-article");
 
-// Op de bedrijfspagina
-LinkedIn::postAsOrganization('Bedrijfsnieuws met een link https://example.com');
+// On the company page
+LinkedIn::postAsOrganization('Company news with a link https://example.com');
 ```
 
-Beide geven `['urn' => '...', 'permalink' => '...']` terug. Zet een URL in de tekst;
-LinkedIn bouwt de linkpreview zelf uit de Open Graph-tags van de pagina.
+Both return `['urn' => '...', 'permalink' => '...']`. Put a URL in the text and
+LinkedIn builds the link preview itself from the Open Graph tags of that page.
 
-> Tip: draai het posten in een queued job, zodat een trage of falende API-call je
-> request niet blokkeert.
+> Tip: run the publishing in a queued job, so a slow or failing API call does not
+> block your request.
 
-### Via de services (dependency injection)
+### Through the services (dependency injection)
 
 ```php
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
@@ -83,31 +85,31 @@ public function share(LinkedInPublisher $publisher)
 {
     $account = LinkedInAccount::current();
 
-    $publisher->publish($account, $account->member_urn, 'Tekst met link https://example.com');
+    $publisher->publish($account, $account->member_urn, 'Text with a link https://example.com');
 }
 ```
 
-## Configuratie
+## Configuration
 
-Alle sleutels staan in `config/linkedin.php`. Belangrijk:
+All keys live in `config/linkedin.php`. The important ones:
 
-| Sleutel | Omschrijving |
+| Key | Description |
 | --- | --- |
-| `organization_urn` | URN bedrijfspagina; leeg = alleen profiel |
-| `api_version` | LinkedIn API-versie (JJJJMM) |
-| `routes.enabled` | Ingebouwde connect/callback-routes aan/uit |
-| `routes.prefix` / `routes.middleware` | Prefix en middleware van die routes |
-| `routes.callback_name` | Routenaam voor de `redirect_uri` (bij eigen routes) |
-| `routes.redirect_to` | Routenaam waarheen na de flow wordt teruggestuurd |
-| `table` | Naam van de accounts-tabel |
+| `organization_urn` | Company page URN; empty = profile only |
+| `api_version` | LinkedIn API version (YYYYMM) |
+| `routes.enabled` | Turn the built-in connect/callback routes on/off |
+| `routes.prefix` / `routes.middleware` | Prefix and middleware of those routes |
+| `routes.callback_name` | Route name used for the `redirect_uri` (when using your own routes) |
+| `routes.redirect_to` | Route name to redirect back to after the flow |
+| `table` | Name of the accounts table |
 
-## Testen
+## Testing
 
 ```bash
 composer install
 composer test
 ```
 
-## Licentie
+## License
 
 MIT © Arvid de Jong

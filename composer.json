@@ -1,6 +1,6 @@
 {
     "name": "darvis/api-linkedin",
-    "description": "Universele Laravel-koppeling om berichten op LinkedIn te plaatsen (persoonlijk profiel én bedrijfspagina) via OAuth 2.0 en de Posts API.",
+    "description": "Universal Laravel integration for publishing posts on LinkedIn (personal profile and company page) through OAuth 2.0 and the Posts API.",
     "keywords": [
         "laravel",
         "linkedin",

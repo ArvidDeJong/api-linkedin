@@ -19,14 +19,14 @@ function makeAccount(): LinkedInAccount
     ]);
 }
 
-it('publiceert namens het lid en geeft urn en permalink terug', function () {
+it('publishes on behalf of the member and returns the urn and permalink', function () {
     Http::fake([
         'https://api.linkedin.com/rest/posts' => Http::response(null, 201, ['x-restli-id' => 'urn:li:share:999']),
     ]);
 
     $account = makeAccount();
 
-    $result = app(LinkedInPublisher::class)->publish($account, $account->member_urn, 'Hallo wereld');
+    $result = app(LinkedInPublisher::class)->publish($account, $account->member_urn, 'Hello world');
 
     expect($result['urn'])->toBe('urn:li:share:999')
         ->and($result['permalink'])->toBe('https://www.linkedin.com/feed/update/urn:li:share:999/');
@@ -36,41 +36,41 @@ it('publiceert namens het lid en geeft urn en permalink terug', function () {
         && $request->hasHeader('LinkedIn-Version', '202601'));
 });
 
-it('escapet gereserveerde tekens in de begeleidende tekst', function () {
+it('escapes reserved characters in the commentary', function () {
     Http::fake([
         'https://api.linkedin.com/rest/posts' => Http::response(null, 201, ['x-restli-id' => 'urn:li:share:1']),
     ]);
 
     $account = makeAccount();
 
-    app(LinkedInPublisher::class)->publish($account, $account->member_urn, 'Prijs (excl. btw) #aanbieding');
+    app(LinkedInPublisher::class)->publish($account, $account->member_urn, 'Price (excl. VAT) #offer');
 
-    Http::assertSent(fn ($request) => str_contains($request['commentary'], '\\(excl. btw\\)')
-        && str_contains($request['commentary'], '\\#aanbieding'));
+    Http::assertSent(fn ($request) => str_contains($request['commentary'], '\\(excl. VAT\\)')
+        && str_contains($request['commentary'], '\\#offer'));
 });
 
-it('werpt een fout bij een API-fout', function () {
+it('throws on an API error', function () {
     Http::fake([
-        'https://api.linkedin.com/rest/posts' => Http::response(['message' => 'Kapot'], 422),
+        'https://api.linkedin.com/rest/posts' => Http::response(['message' => 'Broken'], 422),
     ]);
 
     $account = makeAccount();
 
-    app(LinkedInPublisher::class)->publish($account, $account->member_urn, 'Tekst');
+    app(LinkedInPublisher::class)->publish($account, $account->member_urn, 'Text');
 })->throws(LinkedInException::class);
 
-it('post via de facade namens de bedrijfspagina met de organisatie-urn', function () {
+it('posts on behalf of the company page through the facade using the organization urn', function () {
     Http::fake([
         'https://api.linkedin.com/rest/posts' => Http::response(null, 201, ['x-restli-id' => 'urn:li:share:2']),
     ]);
 
     makeAccount();
 
-    LinkedIn::postAsOrganization('Bedrijfsnieuws');
+    LinkedIn::postAsOrganization('Company news');
 
     Http::assertSent(fn ($request) => $request['author'] === 'urn:li:organization:42');
 });
 
-it('werpt een fout bij posten zonder gekoppeld account', function () {
-    LinkedIn::postAsMember('Tekst');
+it('throws when publishing without a connected account', function () {
+    LinkedIn::postAsMember('Text');
 })->throws(LinkedInException::class);

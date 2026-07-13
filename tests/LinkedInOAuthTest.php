@@ -5,19 +5,19 @@ use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Services\LinkedInOAuth;
 use Illuminate\Support\Facades\Http;
 
-it('bevat de standaardscopes plus de organisatie-scope', function () {
+it('contains the default scopes plus the organization scope', function () {
     $scopes = app(LinkedInOAuth::class)->scopes();
 
     expect($scopes)->toContain('openid', 'profile', 'w_member_social', 'w_organization_social');
 });
 
-it('vraagt de organisatie-scope niet aan zonder bedrijfspagina', function () {
+it('does not request the organization scope without a company page', function () {
     config()->set('linkedin.organization_urn', null);
 
     expect(app(LinkedInOAuth::class)->scopes())->not->toContain('w_organization_social');
 });
 
-it('bouwt een autorisatie-URL met state, redirect en scopes', function () {
+it('builds an authorization URL with state, redirect and scopes', function () {
     $url = app(LinkedInOAuth::class)->authorizationUrl('state-123');
 
     expect($url)
@@ -27,7 +27,7 @@ it('bouwt een autorisatie-URL met state, redirect en scopes', function () {
         ->toContain('scope=openid');
 });
 
-it('wisselt een code in en slaat de verbinding op', function () {
+it('exchanges a code and stores the connection', function () {
     Http::fake([
         'https://www.linkedin.com/oauth/v2/accessToken' => Http::response([
             'access_token' => 'the-access-token',
@@ -50,10 +50,10 @@ it('wisselt een code in en slaat de verbinding op', function () {
         ->and(LinkedInAccount::current()->id)->toBe($account->id);
 });
 
-it('vernieuwt een verlopen token met het refresh-token', function () {
+it('refreshes an expired token with the refresh token', function () {
     Http::fake([
         'https://www.linkedin.com/oauth/v2/accessToken' => Http::response([
-            'access_token' => 'nieuw-token',
+            'access_token' => 'new-token',
             'expires_in' => 5184000,
         ]),
     ]);
@@ -62,7 +62,7 @@ it('vernieuwt een verlopen token met het refresh-token', function () {
         'member_id' => '1',
         'member_urn' => 'urn:li:person:1',
         'name' => 'Test',
-        'access_token' => 'oud-token',
+        'access_token' => 'old-token',
         'refresh_token' => 'refresh',
         'token_expires_at' => now()->subDay(),
         'refresh_token_expires_at' => now()->addYear(),
@@ -70,16 +70,16 @@ it('vernieuwt een verlopen token met het refresh-token', function () {
 
     $token = app(LinkedInOAuth::class)->freshAccessToken($account);
 
-    expect($token)->toBe('nieuw-token')
-        ->and($account->fresh()->access_token)->toBe('nieuw-token');
+    expect($token)->toBe('new-token')
+        ->and($account->fresh()->access_token)->toBe('new-token');
 });
 
-it('werpt een fout wanneer een verlopen token niet te vernieuwen is', function () {
+it('throws when an expired token cannot be refreshed', function () {
     $account = LinkedInAccount::create([
         'member_id' => '1',
         'member_urn' => 'urn:li:person:1',
         'name' => 'Test',
-        'access_token' => 'oud-token',
+        'access_token' => 'old-token',
         'refresh_token' => null,
         'token_expires_at' => now()->subDay(),
     ]);

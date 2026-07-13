@@ -5,6 +5,6 @@ namespace Darvis\ApiLinkedin\Exceptions;
 use RuntimeException;
 
 /**
- * Fout bij communicatie met de LinkedIn API (OAuth of publiceren).
+ * Error while communicating with the LinkedIn API (OAuth or publishing).
  */
 class LinkedInException extends RuntimeException {}

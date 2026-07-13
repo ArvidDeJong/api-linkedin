@@ -4,12 +4,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | LinkedIn app-credentials
+    | LinkedIn app credentials
     |--------------------------------------------------------------------------
     |
-    | Client ID en secret van je app op https://www.linkedin.com/developers/apps.
-    | Vraag de producten "Share on LinkedIn" (persoonlijk profiel) en/of
-    | "Community Management API" (bedrijfspagina) aan.
+    | Client ID and secret of your app at https://www.linkedin.com/developers/apps.
+    | Request the products "Share on LinkedIn" (personal profile) and/or
+    | "Community Management API" (company page).
     |
     */
 
@@ -19,13 +19,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Bedrijfspagina
+    | Company page
     |--------------------------------------------------------------------------
     |
-    | URN van de bedrijfspagina om namens te posten, bijv.
-    | "urn:li:organization:1234567". Laat leeg om alleen op het persoonlijke
-    | profiel te kunnen posten (dan wordt de scope w_organization_social ook
-    | niet aangevraagd).
+    | URN of the company page to post on behalf of, e.g.
+    | "urn:li:organization:1234567". Leave empty to only post on the personal
+    | profile (the w_organization_social scope is then not requested either).
     |
     */
 
@@ -33,11 +32,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | API-versie
+    | API version
     |--------------------------------------------------------------------------
     |
-    | LinkedIn gebruikt maandelijkse API-versies (formaat JJJJMM), elk ~1 jaar
-    | geldig. Zet dit op een geldige, recente versie.
+    | LinkedIn uses monthly API versions (format YYYYMM), each valid for about a
+    | year. Set this to a valid, recent version.
     |
     */
 
@@ -48,9 +47,9 @@ return [
     | Extra scopes
     |--------------------------------------------------------------------------
     |
-    | Standaard worden openid, profile en w_member_social aangevraagd (plus
-    | w_organization_social wanneer er een organization_urn is ingesteld). Voeg
-    | hier eventueel extra scopes toe.
+    | By default openid, profile and w_member_social are requested (plus
+    | w_organization_social when an organization_urn is configured). Add any
+    | additional scopes here.
     |
     */
 
@@ -58,7 +57,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Databasetabel
+    | Database table
     |--------------------------------------------------------------------------
     */
 
@@ -66,13 +65,13 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | OAuth-routes
+    | OAuth routes
     |--------------------------------------------------------------------------
     |
-    | De ingebouwde connect/callback-routes. Zet `enabled` op false als je de
-    | OAuth-flow zelf wilt bedraden; gebruik dan `callback_name` om de service
-    | naar jouw eigen callback-route te laten verwijzen (voor de redirect_uri).
-    | `redirect_to` is de route waarheen na (mis)lukken wordt teruggestuurd.
+    | The built-in connect/callback routes. Set `enabled` to false to wire the
+    | OAuth flow yourself; use `callback_name` to point the service at your own
+    | callback route (for the redirect_uri). `redirect_to` is the route the user
+    | is sent back to after the flow succeeds or fails.
     |
     */
 
@@ -87,10 +86,10 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Sessiesleutels
+    | Session keys
     |--------------------------------------------------------------------------
     |
-    | Sleutels voor de CSRF-state en de flash-berichten na de OAuth-flow.
+    | Keys for the CSRF state and the flash messages after the OAuth flow.
     |
     */
 

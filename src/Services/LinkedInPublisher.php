@@ -7,9 +7,9 @@ use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Plaatst berichten via de LinkedIn Posts API (`/rest/posts`) namens een lid of
- * een bedrijfspagina. Een URL in de begeleidende tekst laat LinkedIn zelf de
- * linkpreview uit de Open Graph-tags van de pagina opbouwen.
+ * Publishes posts through the LinkedIn Posts API (`/rest/posts`) on behalf of a
+ * member or a company page. A URL in the commentary lets LinkedIn build the link
+ * preview itself from the Open Graph tags of that page.
  */
 class LinkedInPublisher
 {
@@ -18,11 +18,11 @@ class LinkedInPublisher
     public function __construct(private LinkedInOAuth $oauth) {}
 
     /**
-     * Plaats een bericht namens $authorUrn met de opgegeven begeleidende tekst.
+     * Publish a post on behalf of $authorUrn with the given commentary.
      *
      * @return array{urn: string, permalink: string}
      *
-     * @throws LinkedInException bij een verlopen koppeling of een API-fout.
+     * @throws LinkedInException on an expired connection or an API error.
      */
     public function publish(LinkedInAccount $account, string $authorUrn, string $commentary): array
     {
@@ -47,7 +47,7 @@ class LinkedInPublisher
             ]);
 
         if ($response->failed()) {
-            throw new LinkedInException('LinkedIn weigerde het bericht: '.$response->body());
+            throw new LinkedInException('LinkedIn rejected the post: '.$response->body());
         }
 
         $urn = $response->header('x-restli-id') ?: (string) $response->json('id', '');
@@ -59,9 +59,8 @@ class LinkedInPublisher
     }
 
     /**
-     * Escapet de tekens die LinkedIn in het commentary-veld reserveert. De
-     * backslash gaat eerst, zodat bestaande backslashes niet dubbel geëscaped
-     * raken.
+     * Escapes the characters LinkedIn reserves in the commentary field. The
+     * backslash goes first, so existing backslashes are not escaped twice.
      */
     private function escapeCommentary(string $text): string
     {

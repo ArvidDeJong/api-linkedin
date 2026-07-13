@@ -2,70 +2,75 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Wat dit is
+## What this is
 
-`darvis/api-linkedin` — een standalone Laravel-package (geen app) waarmee een Laravel-project berichten op LinkedIn plaatst: op het persoonlijke profiel én op een bedrijfspagina, via OAuth 2.0 en de Posts API. Getest tegen Laravel 11/12/13 op PHP 8.2+.
+`darvis/api-linkedin` — a standalone Laravel package (not an app) that lets a Laravel project publish posts on LinkedIn: on the personal profile and on a company page, through OAuth 2.0 and the Posts API. Tested against Laravel 11/12/13 on PHP 8.2+.
 
-**Taalconventie:** alle comments, docblocks, exception-berichten, commit-teksten en documentatie zijn in het Nederlands. Houd dat aan; code-identifiers blijven Engels.
+## Language convention
 
-**Geen externe HTTP-dependency, met opzet.** Alles loopt via `Illuminate\Support\Facades\Http`. Voeg geen Guzzle-wrapper, socialite-provider of LinkedIn-SDK toe.
+**Code is English, documentation is bilingual.**
 
-## Commando's
+- Variables, function names, comments, docblocks, exception messages, flash/UI messages and Pest test descriptions: **English**.
+- Documentation: **English in the root** (`README.md`, `CHANGELOG.md`), **Dutch under `docs/nl/`** (`docs/nl/README.md`, `docs/nl/CHANGELOG.md`). The two versions are linked to each other at the top and must be kept in sync — a change to one means a change to the other.
+
+**No external HTTP dependency, by design.** Everything goes through `Illuminate\Support\Facades\Http`. Do not add a Guzzle wrapper, a Socialite provider or a LinkedIn SDK.
+
+## Commands
 
 ```bash
 composer install
-composer test                                    # pest, hele suite
+composer test                                    # pest, full suite
 
-vendor/bin/pest tests/LinkedInOAuthTest.php      # één bestand
-vendor/bin/pest --filter="vernieuwt een verlopen token"   # één test (Nederlandse omschrijving)
+vendor/bin/pest tests/LinkedInOAuthTest.php      # one file
+vendor/bin/pest --filter="refreshes an expired token"   # one test
 ```
 
-Er is geen linter/formatter geconfigureerd in dit package.
+No linter or formatter is configured in this package.
 
-## Architectuur
+## Architecture
 
-De keten is `Facade LinkedIn` → `LinkedInManager` → (`LinkedInOAuth` | `LinkedInPublisher`) → `LinkedInAccount`. Alle drie de services zijn singletons; `LinkedInManager` is als `'linkedin'` gealiast in de container.
+The chain is `LinkedIn facade` → `LinkedInManager` → (`LinkedInOAuth` | `LinkedInPublisher`) → `LinkedInAccount`. All three services are singletons; `LinkedInManager` is aliased as `'linkedin'` in the container.
 
-- [LinkedInManager.php](src/LinkedInManager.php) — ergonomische gevel (`postAsMember()`, `postAsOrganization()`, `publish()`). Bevat geen HTTP-logica; resolvet het account en delegeert.
-- [Services/LinkedInOAuth.php](src/Services/LinkedInOAuth.php) — autorisatie-URL, code inwisselen, profiel ophalen, token verversen.
+- [LinkedInManager.php](src/LinkedInManager.php) — ergonomic front (`postAsMember()`, `postAsOrganization()`, `publish()`). Contains no HTTP logic; resolves the account and delegates.
+- [Services/LinkedInOAuth.php](src/Services/LinkedInOAuth.php) — authorization URL, code exchange, profile fetch, token refresh.
 - [Services/LinkedInPublisher.php](src/Services/LinkedInPublisher.php) — `POST /rest/posts`.
-- [Models/LinkedInAccount.php](src/Models/LinkedInAccount.php) — de opgeslagen verbinding.
+- [Models/LinkedInAccount.php](src/Models/LinkedInAccount.php) — the stored connection.
 
-### Eén globale verbinding, geen verbinding per gebruiker
+### One global connection, not one per user
 
-`LinkedInAccount::current()` is simpelweg `latest('id')->first()` — het package gaat uit van **één actieve koppeling voor de hele applicatie**, niet van een account per ingelogde gebruiker. `disconnect()` truncate de tabel. Wie multi-tenant / per-user koppelingen wil, moet dit ophaalpad aanpassen (`current()`, `LinkedInManager::requireAccount()`, `disconnect()`), niet alleen een kolom toevoegen.
+`LinkedInAccount::current()` is simply `latest('id')->first()` — the package assumes **a single active connection for the whole application**, not an account per logged-in user. `disconnect()` truncates the table. Anyone wanting multi-tenant / per-user connections must change the retrieval path (`current()`, `LinkedInManager::requireAccount()`, `disconnect()`), not just add a column.
 
-### Bedrijfspagina posten leunt op hetzelfde lid-token
+### Posting as the company page reuses the member's token
 
-Er is geen apart organisatie-token. `postAsOrganization()` gebruikt het access-token van het gekoppelde lid en zet enkel een andere `author`-URN (uit `config('linkedin.organization_urn')`). Dat werkt alleen als het token de scope `w_organization_social` heeft én het lid beheerder van de pagina is.
+There is no separate organization token. `postAsOrganization()` uses the access token of the connected member and only sets a different `author` URN (from `config('linkedin.organization_urn')`). That only works if the token carries the `w_organization_social` scope and the member administers the page.
 
-Gevolg dat makkelijk misgaat: **`scopes()` wordt dynamisch afgeleid van `organization_urn`.** Wordt die config pas ná het koppelen ingevuld, dan zit `w_organization_social` niet in het bestaande token en faalt het posten — opnieuw koppelen is dan nodig. Een niet-obvious koppeling tussen config en tokenstatus.
+The consequence that easily bites: **`scopes()` is derived dynamically from `organization_urn`.** If that config is filled in *after* connecting, the existing token does not carry `w_organization_social` and publishing fails — reconnecting is then required. A non-obvious coupling between config and token state.
 
-### Token-lifecycle
+### Token lifecycle
 
-`LinkedInPublisher::publish()` roept altijd eerst `LinkedInOAuth::freshAccessToken()` aan. Die ververst automatisch bij een verlopen token (met een minuut marge, zie `tokenHasExpired()`) en gooit een `LinkedInException` als er geen bruikbaar refresh-token is. Nieuwe API-calls horen via dit pad te lopen; lees nooit rechtstreeks `$account->access_token` uit.
+`LinkedInPublisher::publish()` always calls `LinkedInOAuth::freshAccessToken()` first. That refreshes automatically on an expired token (with a one-minute margin, see `tokenHasExpired()`) and throws a `LinkedInException` when no usable refresh token is left. New API calls should go through this path; never read `$account->access_token` directly.
 
-Tokens staan `encrypted` in de casts, dus de applicatie heeft een `APP_KEY` nodig en de kolommen zijn `text`.
+Tokens are `encrypted` casts, so the application needs an `APP_KEY` and the columns are `text`.
 
-### Redirect-URI is afgeleid, niet geconfigureerd
+### The redirect URI is derived, not configured
 
-`LinkedInOAuth::redirectUri()` is `route(config('linkedin.routes.callback_name'))`. Er is dus geen `LINKEDIN_REDIRECT_URI`-env; de callback-route bepaalt de URI, en die moet exact overeenkomen met de redirect-URL in de LinkedIn-app. Zet je `routes.enabled` op `false` om de flow zelf te bedraden, dan moet je eigen route de naam uit `routes.callback_name` dragen — anders klopt de `redirect_uri` in beide OAuth-calls niet.
+`LinkedInOAuth::redirectUri()` is `route(config('linkedin.routes.callback_name'))`. There is no `LINKEDIN_REDIRECT_URI` env var; the callback route determines the URI, and it must match the redirect URL in the LinkedIn app exactly. If you set `routes.enabled` to `false` to wire the flow yourself, your own route must carry the name from `routes.callback_name` — otherwise the `redirect_uri` in both OAuth calls will not match.
 
-De ingebouwde routes worden in `LinkedInServiceProvider::registerRoutes()` geregistreerd met prefix/middleware uit config; de routenamen zelf komen uit config binnen [routes/web.php](routes/web.php).
+The built-in routes are registered in `LinkedInServiceProvider::registerRoutes()` with the prefix/middleware from config; the route names themselves come from config inside [routes/web.php](routes/web.php).
 
-### LinkedIn-eigenaardigheden die in de code zijn vastgelegd
+### LinkedIn quirks encoded in the code
 
-- **Commentary-escaping** (`LinkedInPublisher::escapeCommentary()`): de Posts API reserveert `| { } @ [ ] ( ) < > # * _ ~` en `\`. De backslash wordt als eerste vervangen, anders raken bestaande backslashes dubbel geëscaped — laat die volgorde intact.
-- **De post-URN komt uit de `x-restli-id` responseheader**, niet uit de body (de body is bij een 201 leeg).
-- **`LinkedIn-Version`-header** (`config('linkedin.api_version')`, formaat `JJJJMM`) is verplicht op `/rest/*` en verloopt na ~1 jaar. Een plots falende publish is vaak een verlopen versie, niet een bug.
-- Linkpreviews worden niet meegestuurd: een URL in de tekst laat LinkedIn zelf de Open Graph-tags ophalen.
+- **Commentary escaping** (`LinkedInPublisher::escapeCommentary()`): the Posts API reserves `| { } @ [ ] ( ) < > # * _ ~` and `\`. The backslash is replaced first, otherwise existing backslashes get double-escaped — keep that order intact.
+- **The post URN comes from the `x-restli-id` response header**, not the body (the body is empty on a 201).
+- **The `LinkedIn-Version` header** (`config('linkedin.api_version')`, format `YYYYMM`) is required on `/rest/*` and expires after roughly a year. A suddenly failing publish is often an expired version, not a bug.
+- Link previews are not sent along: a URL in the text makes LinkedIn fetch the Open Graph tags itself.
 
-### Tabelnaam is configureerbaar
+### The table name is configurable
 
-`config('linkedin.table')` wordt zowel door `LinkedInAccount::getTable()` als door de migratie gelezen. Hardcode de tabelnaam nergens.
+`config('linkedin.table')` is read by both `LinkedInAccount::getTable()` and the migration. Never hardcode the table name.
 
 ## Tests
 
-Pest bovenop Orchestra Testbench. [tests/Pest.php](tests/Pest.php) hangt `TestCase` + `RefreshDatabase` aan álle tests in `tests/`; [tests/TestCase.php](tests/TestCase.php) draait op in-memory SQLite en zet een `app.key` plus geldige LinkedIn-config (inclusief `organization_urn`) — een test die het gedrag *zonder* bedrijfspagina wil zien, moet die config expliciet leegzetten.
+Pest on top of Orchestra Testbench. [tests/Pest.php](tests/Pest.php) attaches `TestCase` + `RefreshDatabase` to *all* tests in `tests/`; [tests/TestCase.php](tests/TestCase.php) runs on in-memory SQLite and sets an `app.key` plus a valid LinkedIn config (including `organization_urn`) — a test that wants the behaviour *without* a company page must clear that config explicitly.
 
-Alle LinkedIn-calls worden met `Http::fake()` afgevangen; er gaat nooit echt verkeer naar LinkedIn. Fake bij een publish-test ook de `x-restli-id`-header, anders is de URN leeg.
+All LinkedIn calls are intercepted with `Http::fake()`; no traffic ever reaches LinkedIn. In a publish test, also fake the `x-restli-id` header, otherwise the URN comes back empty.

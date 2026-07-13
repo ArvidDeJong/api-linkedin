@@ -3,12 +3,12 @@
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Illuminate\Support\Facades\Http;
 
-it('registreert de connect- en callback-routes', function () {
+it('registers the connect and callback routes', function () {
     expect(route('linkedin.connect'))->toContain('/linkedin/connect')
         ->and(route('linkedin.callback'))->toContain('/linkedin/callback');
 });
 
-it('stuurt de connect-route door naar de LinkedIn-autorisatie', function () {
+it('redirects the connect route to the LinkedIn authorization page', function () {
     $response = $this->get(route('linkedin.connect'));
 
     $response->assertRedirect();
@@ -17,7 +17,7 @@ it('stuurt de connect-route door naar de LinkedIn-autorisatie', function () {
     expect(session('linkedin_oauth_state'))->not->toBeNull();
 });
 
-it('koppelt via de callback en slaat de verbinding op', function () {
+it('connects through the callback and stores the connection', function () {
     Http::fake([
         'https://www.linkedin.com/oauth/v2/accessToken' => Http::response([
             'access_token' => 'token',
@@ -25,7 +25,7 @@ it('koppelt via de callback en slaat de verbinding op', function () {
         ]),
         'https://api.linkedin.com/v2/userinfo' => Http::response([
             'sub' => '55555',
-            'name' => 'Callback Lid',
+            'name' => 'Callback Member',
         ]),
     ]);
 
@@ -36,9 +36,9 @@ it('koppelt via de callback en slaat de verbinding op', function () {
     expect(LinkedInAccount::current()?->member_urn)->toBe('urn:li:person:55555');
 });
 
-it('weigert de callback bij een verkeerde state', function () {
-    $this->withSession(['linkedin_oauth_state' => 'verwacht'])
-        ->get(route('linkedin.callback', ['code' => 'code', 'state' => 'fout']))
+it('rejects the callback on a state mismatch', function () {
+    $this->withSession(['linkedin_oauth_state' => 'expected'])
+        ->get(route('linkedin.callback', ['code' => 'code', 'state' => 'wrong']))
         ->assertSessionHas('linkedin_error');
 
     expect(LinkedInAccount::current())->toBeNull();

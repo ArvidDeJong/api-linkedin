@@ -35,7 +35,7 @@ class LinkedInServiceProvider extends ServiceProvider
     }
 
     /**
-     * Registreer de ingebouwde OAuth-routes wanneer die zijn ingeschakeld.
+     * Register the built-in OAuth routes when they are enabled.
      */
     protected function registerRoutes(): void
     {

@@ -10,20 +10,20 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * Ingebouwde OAuth-afhandeling (verbinden + callback). De routes worden alleen
- * geregistreerd wanneer `linkedin.routes.enabled` aan staat.
+ * Built-in OAuth handling (connect + callback). These routes are only registered
+ * when `linkedin.routes.enabled` is on.
  */
 class LinkedInController
 {
     public function __construct(private LinkedInOAuth $oauth) {}
 
     /**
-     * Start de OAuth-flow: bewaar een CSRF-state en stuur door naar LinkedIn.
+     * Start the OAuth flow: store a CSRF state and redirect to LinkedIn.
      */
     public function connect(Request $request): RedirectResponse
     {
         if (! $this->oauth->isConfigured()) {
-            return $this->back($request, error: 'Stel eerst LINKEDIN_CLIENT_ID en LINKEDIN_CLIENT_SECRET in.');
+            return $this->back($request, error: 'Configure LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET first.');
         }
 
         $state = Str::random(40);
@@ -33,19 +33,19 @@ class LinkedInController
     }
 
     /**
-     * Verwerk de terugkoppeling van LinkedIn: valideer de state, wissel de code
-     * in en sla de verbinding op.
+     * Handle the callback from LinkedIn: validate the state, exchange the code
+     * and store the connection.
      */
     public function callback(Request $request): RedirectResponse
     {
         $expectedState = $request->session()->pull($this->key('state_key', 'linkedin_oauth_state'));
 
         if ($request->filled('error')) {
-            return $this->back($request, error: 'LinkedIn-koppeling geweigerd: '.$request->string('error_description', $request->string('error')));
+            return $this->back($request, error: 'LinkedIn connection denied: '.$request->string('error_description', $request->string('error')));
         }
 
         if (! $request->filled('code') || $expectedState === null || ! hash_equals($expectedState, (string) $request->string('state'))) {
-            return $this->back($request, error: 'Ongeldige of verlopen koppelingssessie. Probeer het opnieuw.');
+            return $this->back($request, error: 'Invalid or expired connection session. Please try again.');
         }
 
         try {
@@ -53,10 +53,10 @@ class LinkedInController
         } catch (LinkedInException|Throwable $e) {
             report($e);
 
-            return $this->back($request, error: 'Koppelen mislukt: '.$e->getMessage());
+            return $this->back($request, error: 'Connecting failed: '.$e->getMessage());
         }
 
-        return $this->back($request, status: 'LinkedIn gekoppeld als '.$account->name.'.');
+        return $this->back($request, status: 'LinkedIn connected as '.$account->name.'.');
     }
 
     private function back(Request $request, ?string $status = null, ?string $error = null): RedirectResponse

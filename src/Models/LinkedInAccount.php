@@ -6,9 +6,9 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * De gekoppelde LinkedIn-verbinding (één actieve verbinding). Bevat het
- * OAuth-token van het geautoriseerde lid; hetzelfde token kan namens het lid
- * én — met de juiste scope + rechten — namens de bedrijfspagina posten.
+ * The connected LinkedIn account (a single active connection). Holds the OAuth
+ * token of the authorized member; that same token can post on behalf of the
+ * member and — with the right scope and permissions — the company page.
  *
  * @property int $id
  * @property string $member_id
@@ -45,8 +45,8 @@ class LinkedInAccount extends Model
     }
 
     /**
-     * De huidige (meest recente) LinkedIn-verbinding, of null als er niet
-     * gekoppeld is.
+     * The current (most recent) LinkedIn connection, or null when no account is
+     * connected.
      */
     public static function current(): ?self
     {
@@ -54,7 +54,7 @@ class LinkedInAccount extends Model
     }
 
     /**
-     * Het access-token is verlopen (of verloopt binnen een minuut).
+     * The access token has expired (or expires within a minute).
      */
     public function tokenHasExpired(): bool
     {
@@ -63,8 +63,8 @@ class LinkedInAccount extends Model
     }
 
     /**
-     * Er is een geldig refresh-token beschikbaar om het access-token te
-     * vernieuwen zonder opnieuw te koppelen.
+     * A valid refresh token is available to renew the access token without
+     * reconnecting.
      */
     public function canRefresh(): bool
     {

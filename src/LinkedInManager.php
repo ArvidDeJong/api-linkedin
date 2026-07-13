@@ -9,8 +9,8 @@ use Darvis\ApiLinkedin\Services\LinkedInOAuth;
 use Darvis\ApiLinkedin\Services\LinkedInPublisher;
 
 /**
- * Ergonomische ingang tot de koppeling; achterliggend gebruikt hij de OAuth- en
- * publisher-services. Bereikbaar via de {@see LinkedIn} facade.
+ * Ergonomic entry point to the integration; under the hood it uses the OAuth and
+ * publisher services. Reachable through the {@see LinkedIn} facade.
  */
 class LinkedInManager
 {
@@ -40,7 +40,7 @@ class LinkedInManager
     }
 
     /**
-     * De huidige gekoppelde verbinding, of null.
+     * The currently connected account, or null.
      */
     public function account(): ?LinkedInAccount
     {
@@ -58,7 +58,7 @@ class LinkedInManager
     }
 
     /**
-     * Plaats een bericht namens het gekoppelde lid.
+     * Publish a post on behalf of the connected member.
      *
      * @return array{urn: string, permalink: string}
      */
@@ -70,7 +70,7 @@ class LinkedInManager
     }
 
     /**
-     * Plaats een bericht namens de bedrijfspagina.
+     * Publish a post on behalf of the company page.
      *
      * @return array{urn: string, permalink: string}
      */
@@ -79,14 +79,14 @@ class LinkedInManager
         $organizationUrn = (string) config('linkedin.organization_urn');
 
         if ($organizationUrn === '') {
-            throw new LinkedInException('Geen LinkedIn-bedrijfspagina ingesteld (linkedin.organization_urn).');
+            throw new LinkedInException('No LinkedIn company page configured (linkedin.organization_urn).');
         }
 
         return $this->publisher->publish($this->requireAccount(), $organizationUrn, $commentary);
     }
 
     /**
-     * Plaats een bericht namens een willekeurige auteur-URN.
+     * Publish a post on behalf of an arbitrary author URN.
      *
      * @return array{urn: string, permalink: string}
      */
@@ -97,6 +97,6 @@ class LinkedInManager
 
     private function requireAccount(): LinkedInAccount
     {
-        return $this->account() ?? throw new LinkedInException('Geen actieve LinkedIn-koppeling.');
+        return $this->account() ?? throw new LinkedInException('No active LinkedIn connection.');
     }
 }

@@ -7,10 +7,10 @@ use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Regelt de OAuth 2.0 (authorization code) flow met LinkedIn: de autorisatie-URL
- * opbouwen, de code inwisselen voor een access-token, het lidprofiel ophalen en
- * verlopen tokens vernieuwen. Bewust zonder externe dependency, met de
- * ingebouwde HTTP-client.
+ * Handles the OAuth 2.0 (authorization code) flow with LinkedIn: building the
+ * authorization URL, exchanging the code for an access token, fetching the
+ * member profile and refreshing expired tokens. Deliberately without an
+ * external dependency, using the built-in HTTP client.
  */
 class LinkedInOAuth
 {
@@ -21,7 +21,7 @@ class LinkedInOAuth
     private const USERINFO_URL = 'https://api.linkedin.com/v2/userinfo';
 
     /**
-     * Zijn de client-credentials ingesteld?
+     * Are the client credentials configured?
      */
     public function isConfigured(): bool
     {
@@ -30,7 +30,7 @@ class LinkedInOAuth
     }
 
     /**
-     * Is er een bedrijfspagina geconfigureerd om namens te posten?
+     * Is a company page configured to post on behalf of?
      */
     public function organizationEnabled(): bool
     {
@@ -38,8 +38,8 @@ class LinkedInOAuth
     }
 
     /**
-     * De aangevraagde scopes. `w_organization_social` wordt alleen gevraagd als
-     * er een bedrijfspagina is ingesteld (vereist Community Management API).
+     * The requested scopes. `w_organization_social` is only requested when a
+     * company page is configured (requires the Community Management API).
      *
      * @return list<string>
      */
@@ -77,7 +77,7 @@ class LinkedInOAuth
     }
 
     /**
-     * Wissel de autorisatiecode in voor een access-token en sla de verbinding op.
+     * Exchange the authorization code for an access token and store the account.
      */
     public function connectFromCode(string $code): LinkedInAccount
     {
@@ -93,7 +93,7 @@ class LinkedInOAuth
             ['member_id' => $profile['sub']],
             [
                 'member_urn' => 'urn:li:person:'.$profile['sub'],
-                'name' => $profile['name'] ?? 'LinkedIn-lid',
+                'name' => $profile['name'] ?? 'LinkedIn member',
                 'access_token' => $token['access_token'],
                 'refresh_token' => $token['refresh_token'] ?? null,
                 'scopes' => $token['scope'] ?? implode(' ', $this->scopes()),
@@ -108,10 +108,10 @@ class LinkedInOAuth
     }
 
     /**
-     * Geef een geldig access-token terug; ververs het indien nodig én mogelijk.
+     * Return a valid access token, refreshing it when needed and possible.
      *
-     * @throws LinkedInException wanneer het token verlopen is en niet te
-     *                           vernieuwen valt (opnieuw koppelen nodig).
+     * @throws LinkedInException when the token has expired and cannot be
+     *                           refreshed (the account must be reconnected).
      */
     public function freshAccessToken(LinkedInAccount $account): string
     {
@@ -120,7 +120,7 @@ class LinkedInOAuth
         }
 
         if (! $account->canRefresh()) {
-            throw new LinkedInException('De LinkedIn-koppeling is verlopen. Koppel het account opnieuw.');
+            throw new LinkedInException('The LinkedIn connection has expired. Please reconnect the account.');
         }
 
         $token = $this->requestToken([
@@ -154,14 +154,14 @@ class LinkedInOAuth
         ]));
 
         if ($response->failed()) {
-            throw new LinkedInException('LinkedIn gaf een fout bij het ophalen van het token: '.$response->body());
+            throw new LinkedInException('LinkedIn returned an error while fetching the token: '.$response->body());
         }
 
         return $response->json();
     }
 
     /**
-     * Haalt het profiel van het geautoriseerde lid op via OpenID Connect.
+     * Fetches the profile of the authorized member through OpenID Connect.
      *
      * @return array<string, mixed>
      */
@@ -170,7 +170,7 @@ class LinkedInOAuth
         $response = Http::withToken($accessToken)->get(self::USERINFO_URL);
 
         if ($response->failed()) {
-            throw new LinkedInException('Kon het LinkedIn-profiel niet ophalen: '.$response->body());
+            throw new LinkedInException('Could not fetch the LinkedIn profile: '.$response->body());
         }
 
         return $response->json();
