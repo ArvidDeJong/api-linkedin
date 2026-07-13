@@ -2,6 +2,7 @@
 
 namespace Darvis\ApiLinkedin\Services;
 
+use Darvis\ApiLinkedin\Exceptions\LinkedInApiException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Illuminate\Support\Facades\Cache;
@@ -75,7 +76,11 @@ class LinkedInOrganizations
             ]);
 
         if ($response->failed()) {
-            throw new LinkedInException('Could not fetch the LinkedIn company pages: '.$response->body());
+            throw LinkedInApiException::from(
+                LinkedInApiException::OPERATION_ORGANIZATIONS,
+                $response,
+                'Could not fetch the LinkedIn company pages',
+            );
         }
 
         $organizations = [];

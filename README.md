@@ -122,6 +122,44 @@ public function share(LinkedInPublisher $publisher)
 }
 ```
 
+## Error handling
+
+Everything throws a `LinkedInException`, but each failure has its own type — react
+on the **type**, not on the message text (that is free to change between releases).
+
+```php
+use Darvis\ApiLinkedin\Exceptions\{
+    LinkedInApiException,
+    LinkedInConnectionExpired,
+    LinkedInNotConnected,
+};
+
+try {
+    LinkedIn::postAsMember($text);
+} catch (LinkedInNotConnected) {
+    // Nobody connected an account yet.
+} catch (LinkedInConnectionExpired) {
+    // Send the user back through the OAuth flow — the only failure they can fix.
+} catch (LinkedInApiException $e) {
+    // $e->operation  'token' | 'profile' | 'publish' | 'organizations'
+    // $e->status     HTTP status
+    // $e->body       raw response body
+    if ($e->isAuthorizationProblem()) {   // 401/403: scope or permission issue
+        // ...
+    }
+}
+```
+
+| Exception | Meaning |
+| --- | --- |
+| `LinkedInNotConnected` | No account connected |
+| `LinkedInConnectionExpired` | Token expired and not refreshable — reconnect |
+| `LinkedInConfigurationException` | A required setting is missing |
+| `LinkedInApiException` | LinkedIn returned an error (`operation`, `status`, `body`) |
+
+All of them extend `LinkedInException`, so a single `catch (LinkedInException $e)`
+still catches everything.
+
 ## Configuration
 
 All keys live in `config/linkedin.php`. The important ones:

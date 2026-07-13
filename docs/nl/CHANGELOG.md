@@ -4,6 +4,18 @@
 
 Alle noemenswaardige wijzigingen aan `darvis/api-linkedin` worden hier bijgehouden.
 
+## [1.3.0] - 2026-07-13
+
+### Toegevoegd
+
+- Getypeerde excepties, zodat je op het **type** kunt reageren in plaats van op de fouttekst (die per release mag wijzigen). Ze erven allemaal van `LinkedInException`, dus een bestaande `catch (LinkedInException $e)` blijft werken:
+  - `LinkedInNotConnected` — er is geen account gekoppeld.
+  - `LinkedInConnectionExpired` — het token is verlopen en niet te vernieuwen; opnieuw koppelen is nodig. De enige fout waar een eindgebruiker zelf iets aan kan doen.
+  - `LinkedInConfigurationException` — een vereiste instelling ontbreekt (bijv. posten op een bedrijfspagina zonder URN).
+  - `LinkedInApiException` — LinkedIn gaf een fout terug. Bevat `operation` (`token`, `profile`, `publish`, `organizations`), `status`, `body` en `isAuthorizationProblem()` (401/403).
+
+Applicaties die berichten in een andere taal tonen, kunnen deze typen nu op hun eigen teksten mappen in plaats van de Engelse tekst van het package te laten zien.
+
 ## [1.2.0] - 2026-07-13
 
 ### Toegevoegd

@@ -2,7 +2,8 @@
 
 namespace Darvis\ApiLinkedin\Services;
 
-use Darvis\ApiLinkedin\Exceptions\LinkedInException;
+use Darvis\ApiLinkedin\Exceptions\LinkedInApiException;
+use Darvis\ApiLinkedin\Exceptions\LinkedInConnectionExpired;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Illuminate\Support\Facades\Http;
 
@@ -134,7 +135,7 @@ class LinkedInOAuth
         }
 
         if (! $account->canRefresh()) {
-            throw new LinkedInException('The LinkedIn connection has expired. Please reconnect the account.');
+            throw new LinkedInConnectionExpired;
         }
 
         $token = $this->requestToken([
@@ -168,7 +169,11 @@ class LinkedInOAuth
         ]));
 
         if ($response->failed()) {
-            throw new LinkedInException('LinkedIn returned an error while fetching the token: '.$response->body());
+            throw LinkedInApiException::from(
+                LinkedInApiException::OPERATION_TOKEN,
+                $response,
+                'LinkedIn returned an error while fetching the token',
+            );
         }
 
         return $response->json();
@@ -184,7 +189,11 @@ class LinkedInOAuth
         $response = Http::withToken($accessToken)->get(self::USERINFO_URL);
 
         if ($response->failed()) {
-            throw new LinkedInException('Could not fetch the LinkedIn profile: '.$response->body());
+            throw LinkedInApiException::from(
+                LinkedInApiException::OPERATION_PROFILE,
+                $response,
+                'Could not fetch the LinkedIn profile',
+            );
         }
 
         return $response->json();

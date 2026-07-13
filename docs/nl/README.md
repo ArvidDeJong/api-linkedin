@@ -126,6 +126,44 @@ public function share(LinkedInPublisher $publisher)
 > Let op: de code van dit package (variabelen, comments, exception- en
 > flash-berichten) is Engelstalig. Alleen de documentatie is tweetalig.
 
+## Foutafhandeling
+
+Alles gooit een `LinkedInException`, maar elke fout heeft zijn eigen type. Reageer
+op het **type**, niet op de fouttekst — die mag per release wijzigen.
+
+```php
+use Darvis\ApiLinkedin\Exceptions\{
+    LinkedInApiException,
+    LinkedInConnectionExpired,
+    LinkedInNotConnected,
+};
+
+try {
+    LinkedIn::postAsMember($tekst);
+} catch (LinkedInNotConnected) {
+    // Er is nog geen account gekoppeld.
+} catch (LinkedInConnectionExpired) {
+    // Stuur de gebruiker opnieuw door de OAuth-flow — de enige fout die hij zelf kan oplossen.
+} catch (LinkedInApiException $e) {
+    // $e->operation  'token' | 'profile' | 'publish' | 'organizations'
+    // $e->status     HTTP-status
+    // $e->body       ruwe response-body
+    if ($e->isAuthorizationProblem()) {   // 401/403: scope- of rechtenprobleem
+        // ...
+    }
+}
+```
+
+| Exceptie | Betekenis |
+| --- | --- |
+| `LinkedInNotConnected` | Geen account gekoppeld |
+| `LinkedInConnectionExpired` | Token verlopen en niet te vernieuwen — opnieuw koppelen |
+| `LinkedInConfigurationException` | Een vereiste instelling ontbreekt |
+| `LinkedInApiException` | LinkedIn gaf een fout terug (`operation`, `status`, `body`) |
+
+Ze erven allemaal van `LinkedInException`, dus één `catch (LinkedInException $e)`
+vangt nog steeds alles op.
+
 ## Configuratie
 
 Alle sleutels staan in `config/linkedin.php`. Belangrijk:

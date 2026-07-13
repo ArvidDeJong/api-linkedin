@@ -2,7 +2,8 @@
 
 namespace Darvis\ApiLinkedin;
 
-use Darvis\ApiLinkedin\Exceptions\LinkedInException;
+use Darvis\ApiLinkedin\Exceptions\LinkedInConfigurationException;
+use Darvis\ApiLinkedin\Exceptions\LinkedInNotConnected;
 use Darvis\ApiLinkedin\Facades\LinkedIn;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Services\LinkedInOAuth;
@@ -87,7 +88,7 @@ class LinkedInManager
         $organizationUrn ??= (string) config('linkedin.organization_urn');
 
         if ($organizationUrn === '') {
-            throw new LinkedInException('No LinkedIn company page given, and none configured (linkedin.organization_urn).');
+            throw new LinkedInConfigurationException('No LinkedIn company page given, and none configured (linkedin.organization_urn).');
         }
 
         return $this->publisher->publish($this->requireAccount(), $organizationUrn, $commentary);
@@ -126,6 +127,6 @@ class LinkedInManager
 
     private function requireAccount(): LinkedInAccount
     {
-        return $this->account() ?? throw new LinkedInException('No active LinkedIn connection.');
+        return $this->account() ?? throw new LinkedInNotConnected;
     }
 }

@@ -59,6 +59,14 @@ The `organizationAcls` response decorates each ACL through a Rest.li projection;
 
 The list is cached per account (`linkedin.organizations.cache_ttl`, 0 disables). Anything that invalidates page membership should call `forgetOrganizations()`.
 
+### Exceptions are typed; never match on the message
+
+Every failure throws a subclass of `LinkedInException`: `LinkedInNotConnected`, `LinkedInConnectionExpired`, `LinkedInConfigurationException` and `LinkedInApiException` (which carries `operation`, `status`, `body`, `isAuthorizationProblem()`).
+
+This exists because the messages are English and **have already changed once** (1.1.0 translated the whole package). Host apps that show messages in another language must map on the *type*. So: when you add a throw site, give it the right type and add the operation constant — do not lean on the wording, and do not "helpfully" merge types back into a bare `LinkedInException`.
+
+`LinkedInConnectionExpired` is the one an end user can act on (reconnect); everything else is either a developer error or an upstream failure. Keep that distinction intact, UIs branch on it.
+
 ### One global connection, not one per user
 
 `LinkedInAccount::current()` is simply `latest('id')->first()` — the package assumes **a single active connection for the whole application**, not an account per logged-in user. `disconnect()` truncates the table. Anyone wanting multi-tenant / per-user connections must change the retrieval path (`current()`, `LinkedInManager::requireAccount()`, `disconnect()`), not just add a column.

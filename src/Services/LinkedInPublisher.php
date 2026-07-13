@@ -2,6 +2,7 @@
 
 namespace Darvis\ApiLinkedin\Services;
 
+use Darvis\ApiLinkedin\Exceptions\LinkedInApiException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Illuminate\Support\Facades\Http;
@@ -47,7 +48,11 @@ class LinkedInPublisher
             ]);
 
         if ($response->failed()) {
-            throw new LinkedInException('LinkedIn rejected the post: '.$response->body());
+            throw LinkedInApiException::from(
+                LinkedInApiException::OPERATION_PUBLISH,
+                $response,
+                'LinkedIn rejected the post',
+            );
         }
 
         $urn = $response->header('x-restli-id') ?: (string) $response->json('id', '');
