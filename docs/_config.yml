@@ -1,0 +1,46 @@
+title: darvis/api-linkedin
+description: Publish posts on LinkedIn from Laravel, on a personal profile or a company page, through OAuth 2.0 and the Posts API. No SDK, no Socialite, only the built-in HTTP client.
+url: https://arviddejong.github.io
+baseurl: /api-linkedin
+
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+plugins:
+  - jekyll-remote-theme
+  - jekyll-relative-links
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# docs/README.md is the index for browsing on GitHub; the site has its own index.md.
+exclude:
+  - README.md
+
+# Facts about the package, used by the structured data and llms.txt.
+package:
+  name: darvis/api-linkedin
+  repository: https://github.com/ArvidDeJong/api-linkedin
+  packagist: https://packagist.org/packages/darvis/api-linkedin
+  license_url: https://github.com/ArvidDeJong/api-linkedin/blob/main/LICENSE
+  requires: PHP 8.2+, Laravel 11, 12 or 13; a LinkedIn app with the Share on LinkedIn product, plus the Community Management API for company pages
+  platforms: [Laravel]
+  keywords: [laravel, linkedin, oauth, posts api, share, company page, social media]
+
+# Developer credit in the footer and the structured data.
+developer:
+  company: ARVID.NL
+  url: https://arvid.nl
+
+color_scheme: light
+search_enabled: true
+heading_anchors: true
+
+aux_links:
+  GitHub: https://github.com/ArvidDeJong/api-linkedin
+  Packagist: https://packagist.org/packages/darvis/api-linkedin
+aux_links_new_tab: true
+
+gh_edit_link: true
+gh_edit_link_text: Edit this page on GitHub
+gh_edit_repository: https://github.com/ArvidDeJong/api-linkedin
+gh_edit_branch: main
+gh_edit_source: docs
+gh_edit_view_mode: tree

@@ -1,43 +1,30 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. The conventions shared by every darvis package (language, releases, CI, docs site, Boost guidelines, public API policy) are in [../CLAUDE.md](../CLAUDE.md); this file only holds what is specific to this package.
 
 ## What this is
 
 `darvis/api-linkedin` — a standalone Laravel package (not an app) that lets a Laravel project publish posts on LinkedIn: on the personal profile and on a company page, through OAuth 2.0 and the Posts API. Tested against Laravel 11/12/13 on PHP 8.2+.
 
-## Language convention
-
-**Code is English, documentation is bilingual.**
-
-- Variables, function names, comments, docblocks, exception messages, flash/UI messages and Pest test descriptions: **English**.
-- Documentation: **English in the root** (`README.md`, `CHANGELOG.md`), **Dutch under `docs/nl/`** (`docs/nl/README.md`, `docs/nl/CHANGELOG.md`). The two versions are linked to each other at the top and must be kept in sync — a change to one means a change to the other.
+- Namespace: `Darvis\ApiLinkedin\` → `src/`
+- Service provider auto-registered via `extra.laravel.providers` in [composer.json](composer.json)
+- Config key: `linkedin`; container alias `linkedin` resolves [LinkedInManager](src/LinkedInManager.php)
 
 **No external HTTP dependency, by design.** Everything goes through `Illuminate\Support\Facades\Http`. Do not add a Guzzle wrapper, a Socialite provider or a LinkedIn SDK.
 
 ## Commands
 
 ```bash
-composer install
-composer test                                    # pest, full suite
-
+composer test                                    # Pest suite
 vendor/bin/pest tests/LinkedInOAuthTest.php      # one file
 vendor/bin/pest --filter="refreshes an expired token"   # one test
+composer lint                                    # Pint (check only); composer format fixes
+composer analyse                                 # Larastan, level 8
 ```
-
-No linter or formatter is configured in this package.
 
 ## Releasing
 
-The package is published on Packagist as `darvis/api-linkedin`; a GitHub webhook pushes every tag on `ArvidDeJong/api-linkedin` to Packagist automatically. A release is therefore just an annotated tag on `main`:
-
-```bash
-git tag -a v1.2.0 -m "v1.2.0 — ..." && git push origin main --follow-tags
-```
-
-**Never add a `version` field to composer.json.** Packagist derives the version from the tag and *skips* any tag whose number does not match a hardcoded `version` (`Skipped tag v1.1.0, tag (1.1.0.0) does not match version (1.0.0.0) in composer.json`). That silently produced a release that never landed. The field was removed for this reason; keep it out.
-
-Update both changelogs ([CHANGELOG.md](CHANGELOG.md) and [docs/nl/CHANGELOG.md](docs/nl/CHANGELOG.md)) in the same commit as the release.
+A `version` field in `composer.json` once made Packagist skip a tag silently (`Skipped tag v1.1.0, tag (1.1.0.0) does not match version (1.0.0.0) in composer.json`); that is why the shared rule exists.
 
 ## Architecture
 
