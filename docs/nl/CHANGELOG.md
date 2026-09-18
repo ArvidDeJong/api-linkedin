@@ -4,6 +4,18 @@
 
 Alle noemenswaardige wijzigingen aan `darvis/api-linkedin` worden hier bijgehouden.
 
+## [Unreleased]
+
+### Toegevoegd
+
+- Laravel Boost guideline in `resources/boost/guidelines/core.blade.php`, zodat host apps die Boost draaien de regels van het package (token wint van config, getypeerde exceptions, één globale koppeling, artikelkaarten) in hun AI context krijgen.
+- Pint (`composer lint`, `composer format`) en Larastan level 8 (`composer analyse`) als ontwikkeltooling, plus de gedeelde CI workflow die de suite draait op PHP 8.2 tot 8.4 met Laravel 11, 12 en 13 op de laagste en de nieuwste dependencies.
+- `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, issue en pull request templates en een Dependabot schema voor de dev tooling.
+
+### Gewijzigd
+
+- Orchestra Testbench 11 is toegestaan voor de testsuite. Voor host apps verandert er niets.
+
 ## [1.5.0] - 2026-07-13
 
 Je eigen afbeelding meesturen. Tot nu toe kreeg een gedeelde link de preview die

@@ -2,6 +2,7 @@
 
 namespace Darvis\ApiLinkedin\Services;
 
+use Darvis\ApiLinkedin\Article;
 use Darvis\ApiLinkedin\Exceptions\LinkedInApiException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInScopeMissing;
@@ -12,7 +13,7 @@ use Illuminate\Support\Str;
 
 /**
  * Uploads an image to LinkedIn and returns its URN, for use as the thumbnail of
- * an {@see \Darvis\ApiLinkedin\Article} or as the body of an image post.
+ * an {@see Article} or as the body of an image post.
  *
  * Uploading is two calls, not one: `initializeUpload` hands out a short-lived,
  * single-use URL, and the bytes are then PUT to that URL. That second call goes

@@ -3,7 +3,6 @@
 namespace Darvis\ApiLinkedin\Http\Controllers;
 
 use Darvis\ApiLinkedin\AuthorizationDenial;
-use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Scopes;
 use Darvis\ApiLinkedin\Services\LinkedInOAuth;
 use Illuminate\Http\RedirectResponse;
@@ -67,7 +66,7 @@ class LinkedInController
                 (string) $request->string('code'),
                 is_array($requestedScopes) ? array_values($requestedScopes) : null,
             );
-        } catch (LinkedInException|Throwable $e) {
+        } catch (Throwable $e) {
             report($e);
 
             return $this->back($request, error: 'Connecting failed: '.$e->getMessage());

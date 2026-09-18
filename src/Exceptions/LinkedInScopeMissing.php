@@ -2,6 +2,7 @@
 
 namespace Darvis\ApiLinkedin\Exceptions;
 
+use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Scopes;
 
 /**
@@ -10,7 +11,7 @@ use Darvis\ApiLinkedin\Scopes;
  * Thrown *before* the request goes out: the stored scopes already prove it would
  * come back as a 403, and a 403 is indistinguishable from a dozen other causes.
  * Only raised when the granted scopes are known and the scope is provably absent
- * — see {@see \Darvis\ApiLinkedin\Models\LinkedInAccount::lacksScope()}.
+ * — see {@see LinkedInAccount::lacksScope()}.
  *
  * The fix is never a retry: add the missing product to the LinkedIn app and
  * reconnect the account, because a token does not gain scopes afterwards.

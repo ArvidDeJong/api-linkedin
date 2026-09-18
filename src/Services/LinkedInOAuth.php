@@ -159,9 +159,10 @@ class LinkedInOAuth
             throw new LinkedInConnectionExpired;
         }
 
+        // canRefresh() guarantees a refresh token; the cast tells the analyser so.
         $token = $this->requestToken([
             'grant_type' => 'refresh_token',
-            'refresh_token' => $account->refresh_token,
+            'refresh_token' => (string) $account->refresh_token,
         ]);
 
         $account->update([

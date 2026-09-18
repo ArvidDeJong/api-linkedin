@@ -4,6 +4,18 @@
 
 All notable changes to `darvis/api-linkedin` are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Laravel Boost guideline in `resources/boost/guidelines/core.blade.php`, so host apps that run Boost get the package's rules (token beats config, typed exceptions, one global connection, article cards) in their AI context.
+- Pint (`composer lint`, `composer format`) and Larastan level 8 (`composer analyse`) as development tooling, and the shared CI workflow that runs the suite on PHP 8.2 to 8.4 with Laravel 11, 12 and 13 on the lowest and the latest dependencies.
+- `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, issue and pull request templates and a Dependabot schedule for the dev tooling.
+
+### Changed
+
+- Orchestra Testbench 11 is allowed for the test suite. Nothing changes for host apps.
+
 ## [1.5.0] - 2026-07-13
 
 Bring your own image. Until now a shared link got whatever preview LinkedIn could
