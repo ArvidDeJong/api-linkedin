@@ -12,10 +12,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **No external HTTP dependency, by design.** Everything goes through `Illuminate\Support\Facades\Http`. Do not add a Guzzle wrapper, a Socialite provider or a LinkedIn SDK.
 
-## Documentation is bilingual
-
-The README and CHANGELOG are English in the root and Dutch under `docs/nl/` (`docs/nl/README.md`, `docs/nl/CHANGELOG.md`). The two versions link to each other at the top and must be kept in sync: a change to one means a change to the other. This package has no GitHub Pages site yet; until it does, `docs/` holds only the Dutch mirror.
-
 ## Commands
 
 ```bash
@@ -28,7 +24,7 @@ composer analyse                                 # Larastan, level 8
 
 ## Releasing
 
-Update both changelogs ([CHANGELOG.md](CHANGELOG.md) and [docs/nl/CHANGELOG.md](docs/nl/CHANGELOG.md)) in the same commit as the release. A `version` field in `composer.json` once made Packagist skip a tag silently (`Skipped tag v1.1.0, tag (1.1.0.0) does not match version (1.0.0.0) in composer.json`); that is why the shared rule exists.
+A `version` field in `composer.json` once made Packagist skip a tag silently (`Skipped tag v1.1.0, tag (1.1.0.0) does not match version (1.0.0.0) in composer.json`); that is why the shared rule exists.
 
 ## Architecture
 

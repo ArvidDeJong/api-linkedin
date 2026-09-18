@@ -1,7 +1,5 @@
 # Changelog
 
-> 🇳🇱 [Nederlandse changelog](docs/nl/CHANGELOG.md)
-
 All notable changes to `darvis/api-linkedin` are documented here.
 
 ## [Unreleased]
@@ -14,7 +12,12 @@ All notable changes to `darvis/api-linkedin` are documented here.
 
 ### Changed
 
+- The documentation moved to a GitHub Pages site at https://arviddejong.github.io/api-linkedin/, built from `docs/`. The README now holds the quick start and links there.
 - Orchestra Testbench 11 is allowed for the test suite. Nothing changes for host apps.
+
+### Removed
+
+- The Dutch mirror of the README and changelog under `docs/nl/`. The documentation is English only, like the code.
 
 ## [1.5.0] - 2026-07-13
 
@@ -94,7 +97,7 @@ Applications that show messages in another language can now map these types onto
 
 ### Added
 
-- Bilingual documentation: English in the root, Dutch under [`docs/nl/`](docs/nl/README.md).
+- Bilingual documentation: English in the root, Dutch under `docs/nl/` (the Dutch mirror was removed again in a later release).
 
 ## [1.0.0] - 2026-07-13
 

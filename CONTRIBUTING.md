@@ -29,8 +29,9 @@ CI runs the tests on PHP 8.2 to 8.4 with Laravel 11, 12 and 13, on the lowest an
 - Every failure throws a typed subclass of `LinkedInException`. Give a new throw site the right type and operation constant; host apps branch on the type, never on the message.
 - No external HTTP dependency: everything goes through `Illuminate\Support\Facades\Http`. Don't add a Guzzle wrapper, a Socialite provider or a LinkedIn SDK.
 - Never read `$account->access_token` directly; go through `LinkedInOAuth::freshAccessToken()` so an expired token is refreshed first.
-- Write code, comments, messages and docs in English. The Dutch documentation under `docs/nl/` mirrors the English root; a change to one means a change to the other.
-- Update `README.md`, `CHANGELOG.md` (under `Unreleased`) and `resources/boost/` when users will notice the change.
+- Write code, comments, messages and docs in English.
+- Update `docs/`, `CHANGELOG.md` (under `Unreleased`) and `resources/boost/` when users will notice the change.
+- The documentation in `docs/` is also the website. Don't write `{{ }}` or `{% %}` in code examples; Jekyll would render it.
 
 ## Code of conduct
 

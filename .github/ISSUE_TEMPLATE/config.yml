@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/ArvidDeJong/api-linkedin/security/advisories/new
     about: Report a vulnerability privately.
   - name: Documentation
-    url: https://github.com/ArvidDeJong/api-linkedin#readme
+    url: https://arviddejong.github.io/api-linkedin/
     about: Installation, LinkedIn app setup, connecting and publishing.
   - name: Problem with the LinkedIn API itself
     url: https://www.linkedin.com/developers/support
