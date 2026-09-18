@@ -4,11 +4,12 @@ All notable changes to `darvis/api-linkedin` are documented here.
 
 ## [Unreleased]
 
-## [1.6.0] - 2026-09-18
+## [1.6.1] - 2026-09-18
 
-The package now has the same shape as the other darvis packages: a documentation
-site, a Laravel Boost guideline, and Pint, Larastan and the shared CI matrix
-behind it. Nothing changes in the public API.
+The release that 1.6.0 was meant to be. The package now has the same shape as
+the other darvis packages: a documentation site, a Laravel Boost guideline, and
+Pint, Larastan and the shared CI matrix behind it. Nothing changes in the public
+API.
 
 ### Added
 
@@ -24,6 +25,11 @@ behind it. Nothing changes in the public API.
 ### Removed
 
 - The Dutch mirror of the README and changelog under `docs/nl/`. The documentation is English only, like the code.
+
+## [1.6.0] - 2026-09-18
+
+Withdrawn. The tag was created before the release branch was merged, so it points
+at the 1.5.0 code. Packagist hides the version; install 1.6.1 instead.
 
 ## [1.5.0] - 2026-07-13
 
