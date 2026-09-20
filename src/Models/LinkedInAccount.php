@@ -4,6 +4,7 @@ namespace Darvis\ApiLinkedin\Models;
 
 use Carbon\CarbonInterface;
 use Darvis\ApiLinkedin\Scopes;
+use Darvis\ApiLinkedin\Support\LinkedInConfig;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -29,7 +30,7 @@ class LinkedInAccount extends Model
 
     public function getTable(): string
     {
-        return config('linkedin.table', 'linkedin_accounts');
+        return LinkedInConfig::table();
     }
 
     /**

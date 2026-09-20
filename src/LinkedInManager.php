@@ -10,6 +10,7 @@ use Darvis\ApiLinkedin\Services\LinkedInImages;
 use Darvis\ApiLinkedin\Services\LinkedInOAuth;
 use Darvis\ApiLinkedin\Services\LinkedInOrganizations;
 use Darvis\ApiLinkedin\Services\LinkedInPublisher;
+use Darvis\ApiLinkedin\Support\LinkedInConfig;
 
 /**
  * Ergonomic entry point to the integration; under the hood it uses the OAuth and
@@ -114,7 +115,7 @@ class LinkedInManager
      */
     public function postAsOrganization(string $commentary, ?string $organizationUrn = null, ?Article $article = null): array
     {
-        $organizationUrn ??= (string) config('linkedin.organization_urn');
+        $organizationUrn ??= (string) LinkedInConfig::organizationUrn();
 
         if ($organizationUrn === '') {
             throw new LinkedInConfigurationException('No LinkedIn company page given, and none configured (linkedin.organization_urn).');

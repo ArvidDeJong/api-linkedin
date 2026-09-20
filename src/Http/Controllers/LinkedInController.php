@@ -5,6 +5,7 @@ namespace Darvis\ApiLinkedin\Http\Controllers;
 use Darvis\ApiLinkedin\AuthorizationDenial;
 use Darvis\ApiLinkedin\Scopes;
 use Darvis\ApiLinkedin\Services\LinkedInOAuth;
+use Darvis\ApiLinkedin\Support\LinkedInConfig;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -36,10 +37,10 @@ class LinkedInController
         $scopes = $request->boolean('profile_only') ? Scopes::MEMBER : $this->oauth->scopes();
         $state = Str::random(40);
 
-        $request->session()->put($this->key('state_key', 'linkedin_oauth_state'), $state);
+        $request->session()->put(LinkedInConfig::stateKey(), $state);
         // Remember what we asked for: the callback needs it to record the granted
         // scopes honestly when LinkedIn leaves `scope` out of the token response.
-        $request->session()->put($this->key('scopes_key', 'linkedin_requested_scopes'), $scopes);
+        $request->session()->put(LinkedInConfig::scopesKey(), $scopes);
 
         return redirect()->away($this->oauth->authorizationUrl($state, $scopes));
     }
@@ -50,8 +51,8 @@ class LinkedInController
      */
     public function callback(Request $request): RedirectResponse
     {
-        $expectedState = $request->session()->pull($this->key('state_key', 'linkedin_oauth_state'));
-        $requestedScopes = $request->session()->pull($this->key('scopes_key', 'linkedin_requested_scopes'));
+        $expectedState = $request->session()->pull(LinkedInConfig::stateKey());
+        $requestedScopes = $request->session()->pull(LinkedInConfig::scopesKey());
 
         if ($denial = AuthorizationDenial::fromCallback($request)) {
             return $this->back($request, error: $this->explain($denial));
@@ -93,22 +94,17 @@ class LinkedInController
 
     private function back(Request $request, ?string $status = null, ?string $error = null): RedirectResponse
     {
-        $to = config('linkedin.routes.redirect_to');
+        $to = LinkedInConfig::redirectTo();
         $redirect = $to !== null ? redirect()->route($to) : redirect()->to('/');
 
         if ($status !== null) {
-            $redirect->with($this->key('status_key', 'linkedin_status'), $status);
+            $redirect->with(LinkedInConfig::statusKey(), $status);
         }
 
         if ($error !== null) {
-            $redirect->with($this->key('error_key', 'linkedin_error'), $error);
+            $redirect->with(LinkedInConfig::errorKey(), $error);
         }
 
         return $redirect;
-    }
-
-    private function key(string $name, string $default): string
-    {
-        return (string) config("linkedin.session.$name", $default);
     }
 }

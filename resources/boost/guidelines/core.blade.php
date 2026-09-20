@@ -2,7 +2,7 @@
 
 This package publishes posts on LinkedIn, on the connected member's profile or on a company page, through OAuth 2.0 and the Posts API. It talks to LinkedIn through `Illuminate\Support\Facades\Http` only; don't add a Guzzle wrapper, a Socialite provider or a LinkedIn SDK next to it.
 
-- Config lives under the key `linkedin` (file `config/linkedin.php`). Read it through `Darvis\ApiLinkedin\LinkedInManager` (`app('linkedin')`, facade `Darvis\ApiLinkedin\Facades\LinkedIn`), not through `config('linkedin.…')` in app code.
+- Config lives under the key `linkedin` (file `config/linkedin.php`). Read it through `Darvis\ApiLinkedin\LinkedInManager` (`app('linkedin')`, facade `Darvis\ApiLinkedin\Facades\LinkedIn`), not through the config helper in app code. Inside the package itself every setting comes from `Darvis\ApiLinkedin\Support\LinkedInConfig`, which holds the defaults; nothing else reads the config.
 - There is one global connection for the whole application, not one per user. `LinkedIn::account()` returns it (or null), `LinkedIn::isConnected()` tells whether there is one, `LinkedIn::disconnect()` removes it.
 - The config says which scopes are requested; the stored token says which scopes LinkedIn granted, and the token wins. Gate UI and features on the connection, never on the config:
 

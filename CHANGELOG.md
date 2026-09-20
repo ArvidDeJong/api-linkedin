@@ -4,6 +4,19 @@ All notable changes to `darvis/api-linkedin` are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- `LinkedInConfig` with named accessors is the one place that reads the package config. Every
+  default is written down once, so a caller cannot quietly disagree with `config/linkedin.php`
+  about what it is. Twenty-three reads spread over nine files now go through it, including
+  `routes/web.php`. The controller's private `key()` helper is gone: the four session keys have
+  their own accessors.
+
+### Changed
+
+- The config keys are in alphabetical order, both the groups and the keys inside them. No key,
+  default or behaviour changed.
+
 ## [1.6.1] - 2026-09-18
 
 The release that 1.6.0 was meant to be. The package now has the same shape as
