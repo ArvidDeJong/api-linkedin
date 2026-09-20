@@ -1,6 +1,7 @@
 <?php
 
 use Darvis\ApiLinkedin\Http\Controllers\LinkedInController;
+use Darvis\ApiLinkedin\Support\LinkedInConfig;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -9,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('connect', [LinkedInController::class, 'connect'])
-    ->name(config('linkedin.routes.connect_name', 'linkedin.connect'));
+    ->name(LinkedInConfig::connectRouteName());
 
 Route::get('callback', [LinkedInController::class, 'callback'])
-    ->name(config('linkedin.routes.callback_name', 'linkedin.callback'));
+    ->name(LinkedInConfig::callbackRouteName());

@@ -4,6 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API version
+    |--------------------------------------------------------------------------
+    |
+    | LinkedIn uses monthly API versions (format YYYYMM), each valid for about a
+    | year. Set this to a valid, recent version.
+    |
+    */
+
+    'api_version' => env('LINKEDIN_API_VERSION', '202601'),
+
+    /*
+    |--------------------------------------------------------------------------
     | LinkedIn app credentials
     |--------------------------------------------------------------------------
     |
@@ -32,15 +44,46 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | API version
+    | Listing company pages
     |--------------------------------------------------------------------------
     |
-    | LinkedIn uses monthly API versions (format YYYYMM), each valid for about a
-    | year. Set this to a valid, recent version.
+    | Enable this to let LinkedIn::organizations() list the company pages the
+    | connected member administers, so a user can pick a target instead of
+    | hardcoding one URN. It adds the `r_organization_admin` scope (and
+    | `w_organization_social`) to the authorization request, which requires
+    | Community Management API access.
+    |
+    | Note: after turning this on you must reconnect. Existing tokens were issued
+    | without the scope and cannot list pages.
     |
     */
 
-    'api_version' => env('LINKEDIN_API_VERSION', '202601'),
+    'organizations' => [
+        // Seconds to cache the list; company pages rarely change. 0 = no cache.
+        'cache_ttl' => env('LINKEDIN_ORGANIZATIONS_CACHE_TTL', 3600),
+        'enabled' => env('LINKEDIN_ORGANIZATIONS_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | OAuth routes
+    |--------------------------------------------------------------------------
+    |
+    | The built-in connect/callback routes. Set `enabled` to false to wire the
+    | OAuth flow yourself; use `callback_name` to point the service at your own
+    | callback route (for the redirect_uri). `redirect_to` is the route the user
+    | is sent back to after the flow succeeds or fails.
+    |
+    */
+
+    'routes' => [
+        'callback_name' => 'linkedin.callback',
+        'connect_name' => 'linkedin.connect',
+        'enabled' => env('LINKEDIN_ROUTES_ENABLED', true),
+        'middleware' => ['web'],
+        'prefix' => env('LINKEDIN_ROUTE_PREFIX', 'linkedin'),
+        'redirect_to' => null,
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -57,24 +100,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Listing company pages
+    | Session keys
     |--------------------------------------------------------------------------
     |
-    | Enable this to let LinkedIn::organizations() list the company pages the
-    | connected member administers, so a user can pick a target instead of
-    | hardcoding one URN. It adds the `r_organization_admin` scope (and
-    | `w_organization_social`) to the authorization request, which requires
-    | Community Management API access.
-    |
-    | Note: after turning this on you must reconnect. Existing tokens were issued
-    | without the scope and cannot list pages.
+    | Keys for the CSRF state and the flash messages after the OAuth flow.
     |
     */
 
-    'organizations' => [
-        'enabled' => env('LINKEDIN_ORGANIZATIONS_ENABLED', false),
-        // Seconds to cache the list; company pages rarely change. 0 = no cache.
-        'cache_ttl' => env('LINKEDIN_ORGANIZATIONS_CACHE_TTL', 3600),
+    'session' => [
+        'error_key' => 'linkedin_error',
+        'scopes_key' => 'linkedin_requested_scopes',
+        'state_key' => 'linkedin_oauth_state',
+        'status_key' => 'linkedin_status',
     ],
 
     /*
@@ -84,42 +121,5 @@ return [
     */
 
     'table' => 'linkedin_accounts',
-
-    /*
-    |--------------------------------------------------------------------------
-    | OAuth routes
-    |--------------------------------------------------------------------------
-    |
-    | The built-in connect/callback routes. Set `enabled` to false to wire the
-    | OAuth flow yourself; use `callback_name` to point the service at your own
-    | callback route (for the redirect_uri). `redirect_to` is the route the user
-    | is sent back to after the flow succeeds or fails.
-    |
-    */
-
-    'routes' => [
-        'enabled' => env('LINKEDIN_ROUTES_ENABLED', true),
-        'prefix' => env('LINKEDIN_ROUTE_PREFIX', 'linkedin'),
-        'middleware' => ['web'],
-        'connect_name' => 'linkedin.connect',
-        'callback_name' => 'linkedin.callback',
-        'redirect_to' => null,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Session keys
-    |--------------------------------------------------------------------------
-    |
-    | Keys for the CSRF state and the flash messages after the OAuth flow.
-    |
-    */
-
-    'session' => [
-        'state_key' => 'linkedin_oauth_state',
-        'scopes_key' => 'linkedin_requested_scopes',
-        'status_key' => 'linkedin_status',
-        'error_key' => 'linkedin_error',
-    ],
 
 ];

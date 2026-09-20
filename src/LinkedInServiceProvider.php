@@ -6,6 +6,7 @@ use Darvis\ApiLinkedin\Services\LinkedInImages;
 use Darvis\ApiLinkedin\Services\LinkedInOAuth;
 use Darvis\ApiLinkedin\Services\LinkedInOrganizations;
 use Darvis\ApiLinkedin\Services\LinkedInPublisher;
+use Darvis\ApiLinkedin\Support\LinkedInConfig;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -43,12 +44,12 @@ class LinkedInServiceProvider extends ServiceProvider
      */
     protected function registerRoutes(): void
     {
-        if (! config('linkedin.routes.enabled', true)) {
+        if (! LinkedInConfig::routesEnabled()) {
             return;
         }
 
-        Route::prefix(config('linkedin.routes.prefix', 'linkedin'))
-            ->middleware(config('linkedin.routes.middleware', ['web']))
+        Route::prefix(LinkedInConfig::routePrefix())
+            ->middleware(LinkedInConfig::routeMiddleware())
             ->group(__DIR__.'/../routes/web.php');
     }
 }

@@ -7,6 +7,7 @@ use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInScopeMissing;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Scopes;
+use Darvis\ApiLinkedin\Support\LinkedInConfig;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -42,7 +43,7 @@ class LinkedInOrganizations
             throw new LinkedInScopeMissing(Scopes::LIST_ORGANIZATIONS);
         }
 
-        $ttl = (int) config('linkedin.organizations.cache_ttl', 3600);
+        $ttl = LinkedInConfig::organizationsCacheTtl();
 
         if ($ttl <= 0) {
             return $this->fetch($account);
@@ -74,7 +75,7 @@ class LinkedInOrganizations
     {
         $response = Http::withToken($this->oauth->freshAccessToken($account))
             ->withHeaders([
-                'LinkedIn-Version' => (string) config('linkedin.api_version'),
+                'LinkedIn-Version' => LinkedInConfig::apiVersion(),
                 'X-Restli-Protocol-Version' => '2.0.0',
             ])
             ->get(self::ACLS_URL, [

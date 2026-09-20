@@ -8,6 +8,7 @@ use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Exceptions\LinkedInScopeMissing;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Scopes;
+use Darvis\ApiLinkedin\Support\LinkedInConfig;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -65,7 +66,7 @@ class LinkedInPublisher
 
         $response = Http::withToken($token)
             ->withHeaders([
-                'LinkedIn-Version' => (string) config('linkedin.api_version'),
+                'LinkedIn-Version' => LinkedInConfig::apiVersion(),
                 'X-Restli-Protocol-Version' => '2.0.0',
             ])
             ->post(self::POSTS_URL, $payload);

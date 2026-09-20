@@ -7,6 +7,7 @@ use Darvis\ApiLinkedin\Exceptions\LinkedInConnectionExpired;
 use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Scopes;
+use Darvis\ApiLinkedin\Support\LinkedInConfig;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -28,8 +29,8 @@ class LinkedInOAuth
      */
     public function isConfigured(): bool
     {
-        return filled(config('linkedin.client_id'))
-            && filled(config('linkedin.client_secret'));
+        return LinkedInConfig::clientId() !== null
+            && LinkedInConfig::clientSecret() !== null;
     }
 
     /**
@@ -37,7 +38,7 @@ class LinkedInOAuth
      */
     public function organizationEnabled(): bool
     {
-        return filled(config('linkedin.organization_urn'));
+        return LinkedInConfig::organizationUrn() !== null;
     }
 
     /**
@@ -45,7 +46,7 @@ class LinkedInOAuth
      */
     public function organizationListingEnabled(): bool
     {
-        return (bool) config('linkedin.organizations.enabled', false);
+        return LinkedInConfig::organizationsEnabled();
     }
 
     /**
@@ -68,7 +69,7 @@ class LinkedInOAuth
             $scopes[] = Scopes::LIST_ORGANIZATIONS;
         }
 
-        foreach ((array) config('linkedin.scopes', []) as $scope) {
+        foreach (LinkedInConfig::extraScopes() as $scope) {
             if (! in_array($scope, $scopes, true)) {
                 $scopes[] = $scope;
             }
@@ -79,7 +80,7 @@ class LinkedInOAuth
 
     public function redirectUri(): string
     {
-        return route(config('linkedin.routes.callback_name', 'linkedin.callback'));
+        return route(LinkedInConfig::callbackRouteName());
     }
 
     /**
@@ -96,7 +97,7 @@ class LinkedInOAuth
     {
         return self::AUTHORIZE_URL.'?'.http_build_query([
             'response_type' => 'code',
-            'client_id' => config('linkedin.client_id'),
+            'client_id' => LinkedInConfig::clientId(),
             'redirect_uri' => $this->redirectUri(),
             'state' => $state,
             'scope' => implode(' ', $scopes ?? $this->scopes()),
@@ -186,8 +187,8 @@ class LinkedInOAuth
     private function requestToken(array $params): array
     {
         $response = Http::asForm()->post(self::TOKEN_URL, array_merge($params, [
-            'client_id' => config('linkedin.client_id'),
-            'client_secret' => config('linkedin.client_secret'),
+            'client_id' => LinkedInConfig::clientId(),
+            'client_secret' => LinkedInConfig::clientSecret(),
         ]));
 
         if ($response->failed()) {
