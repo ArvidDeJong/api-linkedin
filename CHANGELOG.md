@@ -2,7 +2,7 @@
 
 All notable changes to `darvis/api-linkedin` are documented here.
 
-## [Unreleased]
+## [1.7.0] - 2026-09-20
 
 ### Added
 
