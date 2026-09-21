@@ -4,6 +4,8 @@ All notable changes to `darvis/api-linkedin` are documented here.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-21
+
 ### Security
 
 - **The connect and callback routes required no login.** Whoever completes the connect flow becomes the one connection your whole application posts with, and with the package defaults any visitor could open `/linkedin/connect` and do that. The default `routes.middleware` is now `['web', 'auth']`: a guest is redirected to your `login` route (or gets a 401 on a JSON request). **What you have to do:** a `config/linkedin.php` you published earlier keeps its own value and still says `['web']`, so open that file and change it yourself. Signed in is usually still too wide; add an ability so only the right people can connect:
