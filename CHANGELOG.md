@@ -4,6 +4,32 @@ All notable changes to `darvis/api-linkedin` are documented here.
 
 ## [Unreleased]
 
+Documentation only; nothing in the package changes.
+
+### Fixed
+
+- **The required LinkedIn products were incomplete.** The docs, the README and the FAQ named only "Share on LinkedIn" for a profile connection. The package always requests `openid` and `profile` as well, and LinkedIn grants those through the product "Sign In with LinkedIn using OpenID Connect". An app with only "Share on LinkedIn" is refused, so the requirements now name both products.
+- **`LinkedIn::organizations()` does not require `linkedin.organizations.enabled`.** The company pages documentation said it did. The method looks at the token only; the setting decides which scopes the next connect asks for, and it is one of the two conditions of `LinkedIn::canListOrganizations()`.
+- **A missing `w_organization_social` scope is not a 403.** The error documentation explained a 403 on a company page post with a missing scope. With known scopes the package throws `LinkedInScopeMissing` before any request; a 403 remains for a connection from before 1.4 (unknown scopes) and for a member without a role on the page.
+- **The "wiring the flow yourself" example called `connectFromCode()` without the requested scopes.** The granted scopes were then guessed from the config when LinkedIn left `scope` out of the token response. The example now passes the same set to `authorizationUrl()` and `connectFromCode()`, checks the `state`, protects its own routes and handles a refused authorization. The package `CLAUDE.md` claimed that this fallback to the config does not exist; it does, when the second argument is `null`.
+- **"Automatic token refresh" was promised unconditionally.** A token is only renewed when LinkedIn issued a refresh token for your app; otherwise the account has to be connected again after the access token expires.
+- The Boost guideline told host apps to read settings "through `LinkedInManager`". The manager answers three questions (`isConfigured()`, `organizationEnabled()`, `organizationListingEnabled()`); every other setting is on `LinkedInConfig`.
+- The Boost skill's callback test example did not sign in, so it failed against the `auth` default of 1.8.
+- Stated what the docs left out: a 2xx answer without an `x-restli-id` header returns an empty `urn` and `permalink` without an exception; `'middleware' => null` or `[]` in a published config removes every middleware, including `web`; hashtags and mentions arrive as plain text because every reserved character is escaped; `LinkedIn::account()` can be `null`.
+- Removed claims about LinkedIn that the package cannot vouch for (how previews are cached, reuse of an image URN across authors, image posts), and linked LinkedIn's own pages for API versions, refresh tokens and reserved characters instead.
+- The config table lists every `session.*` key with its default, and `routes.middleware` with what `null` does.
+
+### Added
+
+- Documentation pages: **Quick start** (one complete example: gate, settings page with the flash messages, queued job), **Troubleshooting** (every flash message and exception message quoted literally, with cause and fix) and **Testing** (a complete test, the addresses to fake, failures and the connect flow). "Check that it works" in the installation page.
+- README sections `Requirements`, `Who may connect`, `Quick start`, `Changelog`, `Contributing` and `Security`, in the same order as the other darvis packages.
+- `tests/DocsSiteTest.php` guards that the home page links to every page, that the troubleshooting page quotes messages that exist in `src/`, that the requirements agree with `composer.json`, and the README section order.
+
+### Removed
+
+- `docs/README.md`. It duplicated the site index and was excluded from the site; the index of the documentation is `docs/index.md`.
+- The "Author" section of the README; the license names the author.
+
 ## [1.8.0] - 2026-09-21
 
 ### Security
