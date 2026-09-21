@@ -4,6 +4,8 @@ All notable changes to `darvis/api-linkedin` are documented here.
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-09-21
+
 ### Added
 
 - Laravel Boost skill `api-linkedin-development` in `resources/boost/skills/`. It covers how a publish runs, what every failure gives you (exception type, message, whether a request went out), publishing from a job, company pages, article cards with an uploaded image, the connect flow and its flash messages, the pitfalls in a host app (the open connect route, one global connection, unknown scopes, tokens that never gain scopes), the settings and how to test with `Http::fake()`.
