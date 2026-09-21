@@ -3,6 +3,8 @@
 namespace Darvis\ApiLinkedin\Http\Controllers;
 
 use Darvis\ApiLinkedin\AuthorizationDenial;
+use Darvis\ApiLinkedin\Exceptions\LinkedInApiException;
+use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Scopes;
 use Darvis\ApiLinkedin\Services\LinkedInOAuth;
 use Darvis\ApiLinkedin\Support\LinkedInConfig;
@@ -70,10 +72,34 @@ class LinkedInController
         } catch (Throwable $e) {
             report($e);
 
-            return $this->back($request, error: 'Connecting failed: '.$e->getMessage());
+            return $this->back($request, error: $this->describe($e));
         }
 
         return $this->back($request, status: 'LinkedIn connected as '.$account->name.'.');
+    }
+
+    /**
+     * What the person who clicked "connect" gets to read. The exception itself went
+     * to the log; its message does not belong on the screen. A LinkedInApiException
+     * carries LinkedIn's raw response body, and anything that is not ours may carry
+     * application internals such as a query or a decryption error.
+     */
+    private function describe(Throwable $e): string
+    {
+        if ($e instanceof LinkedInApiException) {
+            return match (true) {
+                $e->isConnectionProblem() => 'Connecting failed: LinkedIn could not be reached. Please try again.',
+                $e->operation === LinkedInApiException::OPERATION_PROFILE => 'Connecting failed: the LinkedIn profile could not be fetched. Please try again.',
+                default => 'Connecting failed: LinkedIn did not accept the authorization. Please try again.',
+            };
+        }
+
+        // The other package exceptions carry a fixed text written for this purpose.
+        if ($e instanceof LinkedInException) {
+            return 'Connecting failed: '.$e->getMessage();
+        }
+
+        return 'Connecting failed because of an unexpected error. Please try again.';
     }
 
     /**

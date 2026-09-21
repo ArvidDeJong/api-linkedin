@@ -9,6 +9,8 @@ use Darvis\ApiLinkedin\Exceptions\LinkedInScopeMissing;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Scopes;
 use Darvis\ApiLinkedin\Support\LinkedInConfig;
+use Darvis\ApiLinkedin\Support\Transport;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -64,12 +66,15 @@ class LinkedInPublisher
             $payload['content'] = ['article' => $article->toArray()];
         }
 
-        $response = Http::withToken($token)
-            ->withHeaders([
-                'LinkedIn-Version' => LinkedInConfig::apiVersion(),
-                'X-Restli-Protocol-Version' => '2.0.0',
-            ])
-            ->post(self::POSTS_URL, $payload);
+        $response = Transport::send(
+            LinkedInApiException::OPERATION_PUBLISH,
+            fn (): Response => Http::withToken($token)
+                ->withHeaders([
+                    'LinkedIn-Version' => LinkedInConfig::apiVersion(),
+                    'X-Restli-Protocol-Version' => '2.0.0',
+                ])
+                ->post(self::POSTS_URL, $payload),
+        );
 
         if ($response->failed()) {
             throw LinkedInApiException::from(

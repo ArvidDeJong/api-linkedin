@@ -93,13 +93,14 @@ final class LinkedInConfig
     }
 
     /**
-     * Middleware the built-in routes run through.
+     * Middleware the built-in routes run through. A signed-in user is required by default:
+     * whoever completes the flow becomes the connection the whole application posts with.
      *
      * @return list<string>
      */
     public static function routeMiddleware(): array
     {
-        return array_values(array_map('strval', (array) config('linkedin.routes.middleware', ['web'])));
+        return array_values(array_map('strval', (array) config('linkedin.routes.middleware', ['web', 'auth'])));
     }
 
     /**

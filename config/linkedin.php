@@ -74,13 +74,18 @@ return [
     | callback route (for the redirect_uri). `redirect_to` is the route the user
     | is sent back to after the flow succeeds or fails.
     |
+    | Whoever completes the connect flow becomes the single connection the whole
+    | application posts with, so the routes require a signed-in user by default.
+    | Narrow that further with an ability, for example
+    | ['web', 'auth', 'can:manage-linkedin'].
+    |
     */
 
     'routes' => [
         'callback_name' => 'linkedin.callback',
         'connect_name' => 'linkedin.connect',
         'enabled' => env('LINKEDIN_ROUTES_ENABLED', true),
-        'middleware' => ['web'],
+        'middleware' => ['web', 'auth'],
         'prefix' => env('LINKEDIN_ROUTE_PREFIX', 'linkedin'),
         'redirect_to' => null,
     ],

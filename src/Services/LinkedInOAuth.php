@@ -8,6 +8,8 @@ use Darvis\ApiLinkedin\Exceptions\LinkedInException;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Scopes;
 use Darvis\ApiLinkedin\Support\LinkedInConfig;
+use Darvis\ApiLinkedin\Support\Transport;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -126,7 +128,7 @@ class LinkedInOAuth
 
         $profile = $this->fetchMemberProfile($token['access_token']);
 
-        return LinkedInAccount::query()->updateOrCreate(
+        $account = LinkedInAccount::query()->updateOrCreate(
             ['member_id' => $profile['sub']],
             [
                 'member_urn' => 'urn:li:person:'.$profile['sub'],
@@ -142,6 +144,17 @@ class LinkedInOAuth
                     : null,
             ],
         );
+
+        // "Current" is the account that connected last, read from `updated_at`. A
+        // reconnect that changed no attribute would not save, so say it out loud.
+        if (! $account->wasRecentlyCreated && ! $account->wasChanged('updated_at')) {
+            $account->touch();
+        }
+
+        // The pages belong to the token that listed them; a new token may see others.
+        app(LinkedInOrganizations::class)->forget($account);
+
+        return $account;
     }
 
     /**
@@ -166,7 +179,9 @@ class LinkedInOAuth
             'refresh_token' => (string) $account->refresh_token,
         ]);
 
-        $account->update([
+        // Without timestamps: `updated_at` says when the account was connected, and
+        // that decides which account is current. A refresh is not a connect.
+        LinkedInAccount::withoutTimestamps(fn () => $account->update([
             'access_token' => $token['access_token'],
             'refresh_token' => $token['refresh_token'] ?? $account->refresh_token,
             'token_expires_at' => isset($token['expires_in'])
@@ -175,21 +190,24 @@ class LinkedInOAuth
             'refresh_token_expires_at' => isset($token['refresh_token_expires_in'])
                 ? now()->addSeconds((int) $token['refresh_token_expires_in'])
                 : $account->refresh_token_expires_at,
-        ]);
+        ]));
 
         return $account->access_token;
     }
 
     /**
      * @param  array<string, string>  $params
-     * @return array<string, mixed>
+     * @return array<string, mixed> with a non-empty string under `access_token`
      */
     private function requestToken(array $params): array
     {
-        $response = Http::asForm()->post(self::TOKEN_URL, array_merge($params, [
-            'client_id' => LinkedInConfig::clientId(),
-            'client_secret' => LinkedInConfig::clientSecret(),
-        ]));
+        $response = Transport::send(
+            LinkedInApiException::OPERATION_TOKEN,
+            fn (): Response => Http::asForm()->post(self::TOKEN_URL, array_merge($params, [
+                'client_id' => LinkedInConfig::clientId(),
+                'client_secret' => LinkedInConfig::clientSecret(),
+            ])),
+        );
 
         if ($response->failed()) {
             throw LinkedInApiException::from(
@@ -199,17 +217,33 @@ class LinkedInOAuth
             );
         }
 
-        return $response->json();
+        $token = $response->json();
+
+        // A 2xx is no promise of a usable body: a proxy page or an empty answer would
+        // otherwise surface as a TypeError instead of a LinkedInException.
+        if (! is_array($token) || ! is_string($token['access_token'] ?? null) || $token['access_token'] === '') {
+            throw new LinkedInApiException(
+                operation: LinkedInApiException::OPERATION_TOKEN,
+                status: $response->status(),
+                body: $response->body(),
+                message: 'LinkedIn returned a token response without an access token',
+            );
+        }
+
+        return $token;
     }
 
     /**
      * Fetches the profile of the authorized member through OpenID Connect.
      *
-     * @return array<string, mixed>
+     * @return array<string, mixed> with a non-empty string under `sub`
      */
     private function fetchMemberProfile(string $accessToken): array
     {
-        $response = Http::withToken($accessToken)->get(self::USERINFO_URL);
+        $response = Transport::send(
+            LinkedInApiException::OPERATION_PROFILE,
+            fn (): Response => Http::withToken($accessToken)->get(self::USERINFO_URL),
+        );
 
         if ($response->failed()) {
             throw LinkedInApiException::from(
@@ -219,6 +253,17 @@ class LinkedInOAuth
             );
         }
 
-        return $response->json();
+        $profile = $response->json();
+
+        if (! is_array($profile) || ! is_string($profile['sub'] ?? null) || $profile['sub'] === '') {
+            throw new LinkedInApiException(
+                operation: LinkedInApiException::OPERATION_PROFILE,
+                status: $response->status(),
+                body: $response->body(),
+                message: 'LinkedIn returned a profile without a member id',
+            );
+        }
+
+        return $profile;
     }
 }

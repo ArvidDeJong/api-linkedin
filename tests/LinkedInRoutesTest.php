@@ -2,7 +2,12 @@
 
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Scopes;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Http;
+
+// The built-in routes require a signed-in user by default; what a guest gets is
+// covered in LinkedInRouteProtectionTest.
+beforeEach(fn () => $this->actingAs(new User));
 
 it('registers the connect and callback routes', function () {
     expect(route('linkedin.connect'))->toContain('/linkedin/connect')
