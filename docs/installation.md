@@ -77,6 +77,10 @@ All keys live in `config/linkedin.php`.
 
 Two settings change which scopes are requested: `organization_urn` (adds `w_organization_social`) and `organizations.enabled` (adds `r_organization_admin` as well). Changing either after connecting does not change the stored token; see [Connecting](connecting.md#the-config-asks-the-token-decides).
 
+## Laravel Boost
+
+The package ships a [Laravel Boost](https://laravel.com/docs/boost) guideline and an `api-linkedin-development` skill, so an AI assistant in your project knows the publish flow, what every failure gives you, the pitfalls and how to test without calling LinkedIn. Run `php artisan boost:install`, or `php artisan boost:update --discover` in a project that already uses Boost.
+
 ## Testing your integration
 
 All LinkedIn calls go through `Illuminate\Support\Facades\Http`, so `Http::fake()` intercepts them in your tests. The publish response carries the post URN in the `x-restli-id` header, not in the body, so fake that header when you assert on the returned URN:
