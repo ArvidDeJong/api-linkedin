@@ -27,7 +27,7 @@ Requires PHP 8.2+ and Laravel 11, 12 or 13, and a LinkedIn app with the **Share 
 - **Article cards with your own image**: upload a thumbnail and keep the whole card clickable
 - **Knows what LinkedIn granted**: an app without the Community Management API still connects, on the profile
 - **Typed exceptions**, so your code branches on the type instead of on LinkedIn's message text
-- **Laravel Boost guideline** shipped in the package, so AI tooling in your app knows the rules
+- **Laravel Boost guideline and skill** shipped in the package, so AI tooling in your app knows the rules
 
 ## Quick example
 

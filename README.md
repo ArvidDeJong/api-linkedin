@@ -84,7 +84,9 @@ Or start at the [documentation index](docs/README.md), or read the [FAQ](https:/
 ## Laravel Boost
 
 The package ships a [Laravel Boost](https://laravel.com/docs/boost) guideline with the
-rules that matter when writing code against it. Run `php artisan boost:install`, or
+rules that matter when writing code against it, and an `api-linkedin-development` skill
+with the publish flow, what every failure gives you, the pitfalls in a host app and how to
+test without calling LinkedIn. Run `php artisan boost:install`, or
 `php artisan boost:update --discover` in a project that already uses Boost.
 
 ## Development
