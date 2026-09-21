@@ -4,6 +4,8 @@ All notable changes to `darvis/api-linkedin` are documented here.
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-09-21
+
 Documentation only; nothing in the package changes.
 
 ### Fixed
