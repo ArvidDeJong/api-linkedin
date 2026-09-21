@@ -1,31 +1,31 @@
 # Questions as people ask them to an assistant. Short, factual answers, checked against the docs.
 # Rendered on faq.md, in the FAQPage structured data and in llms.txt.
 - q: How do I post on LinkedIn from a Laravel application?
-  a: Install `darvis/api-linkedin`, set up a LinkedIn app with the Share on LinkedIn product, connect an account through the built-in `/linkedin/connect` route and call `LinkedIn::postAsMember($text)`. Posting on a company page works the same way with `LinkedIn::postAsOrganization($text)`.
+  a: Install `darvis/api-linkedin` with Composer, create a LinkedIn app, fill in `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET`, and connect an account once through the built-in `/linkedin/connect` route. After that `LinkedIn::postAsMember($text)` posts on the profile and `LinkedIn::postAsOrganization($text)` on a company page.
 
-- q: Does darvis/api-linkedin need Socialite or a LinkedIn SDK?
-  a: No. It has no external HTTP dependency and talks to LinkedIn through Laravel's built-in HTTP client, so `Http::fake()` covers it in your tests.
+- q: What is darvis/api-linkedin, and does it need Socialite or a LinkedIn SDK?
+  a: It is a Laravel package that handles the LinkedIn OAuth 2.0 connect flow, stores the tokens encrypted and publishes posts through the LinkedIn Posts API. It needs neither Socialite nor an SDK. Every call goes through Laravel's own HTTP client, so `Http::fake()` covers it in your tests.
 
-- q: Which LinkedIn products and scopes does the package need?
-  a: "Share on LinkedIn for the personal profile (`openid`, `profile`, `w_member_social`). Posting on a company page needs the Community Management API with `w_organization_social`, and listing company pages also needs `r_organization_admin`."
-
-- q: Why can my LinkedIn app not connect at all?
-  a: LinkedIn refuses the entire authorization when one requested scope is not authorized for your app. An app without the Community Management API must connect with the member scopes only, through `route('linkedin.connect', ['profile_only' => 1])` or by passing `Scopes::MEMBER` to `authorizationUrl()` and `connectFromCode()`.
-
-- q: I enabled company pages after connecting and now get LinkedInScopeMissing. Why?
-  a: A token never gains scopes. The stored token was issued without `w_organization_social` or `r_organization_admin`, so the package refuses the call before sending it. Reconnect the account and the new token carries the scope.
-
-- q: How does the package handle expired LinkedIn tokens?
-  a: Every publish first refreshes an expired access token with the refresh token. When no usable refresh token is left, it throws `LinkedInConnectionExpired`, and the user has to connect again. Tokens are stored encrypted, so the app needs an `APP_KEY`.
-
-- q: Can I control the image of a shared link?
-  a: Yes. Attach an `Article` with a thumbnail you uploaded through `LinkedIn::uploadImage()`. The card stays clickable through to your site. The image must be uploaded as the same author the post is published as.
-
-- q: Is the connection per user or per application?
-  a: Per application. The package stores one connection and `LinkedIn::account()` returns it; a per-user setup needs its own retrieval path.
-
-- q: Which PHP and Laravel versions are supported?
+- q: Which PHP and Laravel versions does darvis/api-linkedin support?
   a: PHP 8.2 or higher and Laravel 11, 12 and 13.
 
-- q: Is darvis/api-linkedin an official LinkedIn package?
-  a: No. It is an independent open-source package under the MIT license, maintained by ARVID.NL, and not affiliated with LinkedIn.
+- q: Which LinkedIn products and scopes does the package need, and what does it cost?
+  a: "The package is free and MIT licensed. Your LinkedIn app needs Sign In with LinkedIn using OpenID Connect (`openid`, `profile`) and Share on LinkedIn (`w_member_social`). Posting on a company page needs the Community Management API (`w_organization_social`), and listing company pages also needs `r_organization_admin`."
+
+- q: Is it safe, and who can connect a LinkedIn account to my application?
+  a: "The tokens are stored encrypted with your `APP_KEY`. Whoever completes the connect flow becomes the account the whole application posts with, so since 1.8 the connect routes require a signed-in user by default. Narrow that to administrators with `linkedin.routes.middleware`, for example `['web', 'auth', 'can:manage-linkedin']`."
+
+- q: Why can my LinkedIn app not connect at all?
+  a: LinkedIn refuses the entire authorization when one requested scope is not authorized for your app. An app without the Community Management API must connect with the member scopes only, through `route('linkedin.connect', ['profile_only' => 1])` or by passing `Scopes::MEMBER` to both `authorizationUrl()` and `connectFromCode()`.
+
+- q: I enabled company pages after connecting and now get LinkedInScopeMissing. Why?
+  a: A token never gains scopes. The stored token was issued without `w_organization_social` or `r_organization_admin`, so the package refuses the call before sending it. Connect the account again and the new token carries the scope.
+
+- q: How does the package handle expired LinkedIn tokens?
+  a: Before every call it renews an access token that is about to expire, when LinkedIn issued a refresh token. Without a usable refresh token it throws `LinkedInConnectionExpired`, and an administrator has to connect again.
+
+- q: Can I control the image and title of a link I share on LinkedIn?
+  a: Yes. Upload the image with `LinkedIn::uploadImage($ownerUrn, $contents, $contentType)` and attach an `Article` with that thumbnail, a title and a description to the post. The image must be uploaded with the URN of the same author the post is published as.
+
+- q: Is the LinkedIn connection per user or per application, and is this an official LinkedIn package?
+  a: Per application. The package stores one connection and `LinkedIn::account()` returns the account that was connected last. It is an independent open-source package maintained by ARVID.NL, not affiliated with LinkedIn.

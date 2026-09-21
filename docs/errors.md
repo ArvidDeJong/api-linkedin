@@ -1,7 +1,7 @@
 ---
-title: Error handling
-description: "The typed exceptions of darvis/api-linkedin: not connected, connection expired, missing scope, configuration and API errors, and what your Laravel app should do with each."
-nav_order: 6
+title: "Error handling"
+description: "The exception types of darvis/api-linkedin: not connected, connection expired, missing scope, configuration and API errors, and what your code does with each."
+nav_order: 7
 ---
 
 # Error handling
@@ -40,10 +40,10 @@ try {
 
 | Exception | Meaning | What to do |
 | --- | --- | --- |
-| `LinkedInNotConnected` | No account is connected | Offer the connect route |
+| `LinkedInNotConnected` | No account is connected. Thrown by every facade method that needs the account | Offer the connect route |
 | `LinkedInConnectionExpired` | The token expired and cannot be refreshed | Ask the user to connect again |
-| `LinkedInConfigurationException` | A required setting is missing, such as a company page URN | Fix the config; a developer error |
-| `LinkedInScopeMissing` | The token provably lacks the scope this call needs (`scope`); thrown before any request goes out | Add the product to the LinkedIn app and reconnect |
+| `LinkedInConfigurationException` | `postAsOrganization()` got no URN and `linkedin.organization_urn` is empty | Pass a URN or set `LINKEDIN_ORGANIZATION_URN`; a developer error |
+| `LinkedInScopeMissing` | The stored scopes show that the token lacks the scope this call needs (`$e->scope`): `w_organization_social` for a company page author or image owner, `r_organization_admin` for `organizations()`. Thrown before any request goes out | Add the product to the LinkedIn app and reconnect |
 | `LinkedInApiException` | LinkedIn returned an error (`operation`, `status`, `body`), answered a successful call with a body the package cannot use, or could not be reached at all (`status` 0, `isConnectionProblem()`) | Log it; check `isAuthorizationProblem()` and the API version, retry on `isConnectionProblem()` |
 
 All of them extend `LinkedInException`, so a single `catch (LinkedInException $e)` still catches everything. `LinkedInConnectionExpired` is the one an end user can act on; everything else is a developer error or an upstream failure, and UIs should keep that distinction.
@@ -56,9 +56,15 @@ A timeout or an unreachable LinkedIn is part of the same family since 1.8. The p
 
 A denial on the OAuth callback is not an exception but a query string from LinkedIn. `AuthorizationDenial::fromCallback($request)` reads it, decodes the HTML entities LinkedIn puts in the description, and tells you whether the member declined or your app lacks a product; see [Connecting](connecting.md#apps-without-the-community-management-api).
 
-## Common causes
+## Looking up a message
 
-- **A 4xx on every publish, out of nowhere.** `LINKEDIN_API_VERSION` has expired; LinkedIn versions are valid for about a year. Set a recent version.
-- **403 when posting as the company page.** The token has no `w_organization_social` because `organization_urn` was set after connecting, or the member does not administer the page. Reconnect.
-- **`redirect_uri` does not match.** The callback route resolves to a different URL than the redirect URL in the LinkedIn app; see [the redirect URI](installation.md#the-redirect-uri).
-- **The connection session is invalid or expired.** The `state` in the callback does not match the session, usually because the session cookie was lost between the two requests, or the flow started on another host.
+[Troubleshooting](troubleshooting.md) lists the literal messages of these exceptions and of the connect flow, each with its cause and its fix.
+
+## A 403 from LinkedIn while the scope check passed
+
+`LinkedInScopeMissing` is only thrown when the package knows the scopes of the token. Two cases still reach LinkedIn and come back as a `LinkedInApiException` with status 403 (`isAuthorizationProblem()` is true):
+
+- The connection was stored before version 1.4, so its scopes are unknown (`$account->grantedScopes()` is `null`).
+- The token has the scope, but the member does not administer that company page.
+
+Reconnecting fixes the first case. The second needs the member to get a role on that page that may post.
