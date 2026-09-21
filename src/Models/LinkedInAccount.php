@@ -47,12 +47,17 @@ class LinkedInAccount extends Model
     }
 
     /**
-     * The current (most recent) LinkedIn connection, or null when no account is
-     * connected.
+     * The current LinkedIn connection: the account that was connected most
+     * recently, or null when no account is connected.
+     *
+     * `updated_at` and not the id: a member who reconnects keeps the row they
+     * already had, and must still become the account the application posts with.
+     * The id only breaks a tie within one second. A token refresh leaves
+     * `updated_at` alone for the same reason.
      */
     public static function current(): ?self
     {
-        return static::query()->latest('id')->first();
+        return static::query()->latest('updated_at')->latest('id')->first();
     }
 
     /**

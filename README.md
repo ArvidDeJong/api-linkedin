@@ -48,7 +48,11 @@ redirect URI rules.
 
 ## Usage
 
-Send the user to `route('linkedin.connect')` once, then publish:
+Send a signed-in user to `route('linkedin.connect')` once, then publish. Whoever completes
+that flow becomes the one connection the whole application posts with, so the connect and
+callback routes run through `['web', 'auth']` by default; narrow it to the people who may do
+this with `linkedin.routes.middleware`, for example `['web', 'auth', 'can:manage-linkedin']`
+(see [Connecting](docs/connecting.md#who-may-connect)).
 
 ```php
 use Darvis\ApiLinkedin\Facades\LinkedIn;

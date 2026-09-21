@@ -35,6 +35,6 @@ Turning the setting on **after** connecting does not upgrade the stored token. `
 
 ## Caching
 
-The list is cached per account for `organizations.cache_ttl` seconds, one hour by default; company pages rarely change. Set it to `0` to disable the cache, pass `fresh: true` for one uncached call, or call `forgetOrganizations()` after anything that changes page membership.
+The list is cached per account for `organizations.cache_ttl` seconds, one hour by default; company pages rarely change. Set it to `0` to disable the cache, pass `fresh: true` for one uncached call, or call `forgetOrganizations()` after anything that changes page membership. Connecting the account again and `LinkedIn::disconnect()` both drop the cached list themselves.
 
 When LinkedIn leaves the organization details out of the response, the bare URN is used as the name, so the list is always usable.

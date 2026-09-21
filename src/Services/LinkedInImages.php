@@ -9,6 +9,8 @@ use Darvis\ApiLinkedin\Exceptions\LinkedInScopeMissing;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Scopes;
 use Darvis\ApiLinkedin\Support\LinkedInConfig;
+use Darvis\ApiLinkedin\Support\Transport;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -54,14 +56,17 @@ class LinkedInImages
 
         $token = $this->oauth->freshAccessToken($account);
 
-        $initialized = Http::withToken($token)
-            ->withHeaders([
-                'LinkedIn-Version' => LinkedInConfig::apiVersion(),
-                'X-Restli-Protocol-Version' => '2.0.0',
-            ])
-            ->post(self::IMAGES_URL.'?action=initializeUpload', [
-                'initializeUploadRequest' => ['owner' => $ownerUrn],
-            ]);
+        $initialized = Transport::send(
+            LinkedInApiException::OPERATION_IMAGE,
+            fn (): Response => Http::withToken($token)
+                ->withHeaders([
+                    'LinkedIn-Version' => LinkedInConfig::apiVersion(),
+                    'X-Restli-Protocol-Version' => '2.0.0',
+                ])
+                ->post(self::IMAGES_URL.'?action=initializeUpload', [
+                    'initializeUploadRequest' => ['owner' => $ownerUrn],
+                ]),
+        );
 
         if ($initialized->failed()) {
             throw LinkedInApiException::from(
@@ -83,9 +88,12 @@ class LinkedInImages
             );
         }
 
-        $uploaded = Http::withToken($token)
-            ->withBody($contents, $contentType)
-            ->put($uploadUrl);
+        $uploaded = Transport::send(
+            LinkedInApiException::OPERATION_IMAGE,
+            fn (): Response => Http::withToken($token)
+                ->withBody($contents, $contentType)
+                ->put($uploadUrl),
+        );
 
         if ($uploaded->failed()) {
             throw LinkedInApiException::from(

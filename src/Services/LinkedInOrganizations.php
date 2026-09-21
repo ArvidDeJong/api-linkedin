@@ -8,6 +8,8 @@ use Darvis\ApiLinkedin\Exceptions\LinkedInScopeMissing;
 use Darvis\ApiLinkedin\Models\LinkedInAccount;
 use Darvis\ApiLinkedin\Scopes;
 use Darvis\ApiLinkedin\Support\LinkedInConfig;
+use Darvis\ApiLinkedin\Support\Transport;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -73,19 +75,24 @@ class LinkedInOrganizations
      */
     private function fetch(LinkedInAccount $account): array
     {
-        $response = Http::withToken($this->oauth->freshAccessToken($account))
-            ->withHeaders([
-                'LinkedIn-Version' => LinkedInConfig::apiVersion(),
-                'X-Restli-Protocol-Version' => '2.0.0',
-            ])
-            ->get(self::ACLS_URL, [
-                'q' => 'roleAssignee',
-                'role' => 'ADMINISTRATOR',
-                'state' => 'APPROVED',
-                // Decorate each ACL with the organization itself, so we get the
-                // name in the same call instead of one request per page.
-                'projection' => '(elements*(*,organization~(id,localizedName,vanityName)))',
-            ]);
+        $token = $this->oauth->freshAccessToken($account);
+
+        $response = Transport::send(
+            LinkedInApiException::OPERATION_ORGANIZATIONS,
+            fn (): Response => Http::withToken($token)
+                ->withHeaders([
+                    'LinkedIn-Version' => LinkedInConfig::apiVersion(),
+                    'X-Restli-Protocol-Version' => '2.0.0',
+                ])
+                ->get(self::ACLS_URL, [
+                    'q' => 'roleAssignee',
+                    'role' => 'ADMINISTRATOR',
+                    'state' => 'APPROVED',
+                    // Decorate each ACL with the organization itself, so we get the
+                    // name in the same call instead of one request per page.
+                    'projection' => '(elements*(*,organization~(id,localizedName,vanityName)))',
+                ]),
+        );
 
         if ($response->failed()) {
             throw LinkedInApiException::from(

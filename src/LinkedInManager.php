@@ -90,8 +90,16 @@ class LinkedInManager
         return $this->account() !== null;
     }
 
+    /**
+     * Remove every stored connection, together with the company pages cached for it.
+     */
     public function disconnect(): void
     {
+        // The cache is keyed on the account, so it has to go while the rows still exist.
+        LinkedInAccount::query()->get()->each(
+            fn (LinkedInAccount $account) => $this->organizations->forget($account),
+        );
+
         LinkedInAccount::query()->delete();
     }
 

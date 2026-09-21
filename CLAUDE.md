@@ -57,7 +57,9 @@ The list is cached per account (`linkedin.organizations.cache_ttl`, 0 disables).
 
 ### Exceptions are typed; never match on the message
 
-Every failure throws a subclass of `LinkedInException`: `LinkedInNotConnected`, `LinkedInConnectionExpired`, `LinkedInConfigurationException`, `LinkedInScopeMissing` (carries the `scope`) and `LinkedInApiException` (which carries `operation`, `status`, `body`, `isAuthorizationProblem()`).
+Every failure throws a subclass of `LinkedInException`: `LinkedInNotConnected`, `LinkedInConnectionExpired`, `LinkedInConfigurationException`, `LinkedInScopeMissing` (carries the `scope`) and `LinkedInApiException` (which carries `operation`, `status`, `body`, `isAuthorizationProblem()`, `isConnectionProblem()`).
+
+"Every" includes the call that never got an answer. Each HTTP call goes through [Support/Transport](src/Support/Transport.php) (`@internal`), which turns Laravel's `ConnectionException` into `LinkedInApiException::unreachable()`: status 0, empty body, the original as `previous`. Never call `Http::` in a service outside `Transport::send()`, or a timeout escapes the hierarchy the docs promise. The message deliberately omits the original text, because it names the URL and an image upload URL is a signed secret. `LinkedInOAuth` also checks a 2xx token or profile body for `access_token` / `sub` and throws the same type; a proxy page or an empty body must not surface as a `TypeError`.
 
 The one place a message *is* parsed is `AuthorizationDenial` — but that is LinkedIn's wire format on the OAuth callback, not our own text, and it is deliberately confined to that single class so host apps never string-match on `'scope'` themselves. It also HTML-decodes the description, which LinkedIn escapes (`&quot;`) and Blade would then escape a second time.
 
@@ -67,7 +69,23 @@ This exists because the messages are English and **have already changed once** (
 
 ### One global connection, not one per user
 
-`LinkedInAccount::current()` is simply `latest('id')->first()` — the package assumes **a single active connection for the whole application**, not an account per logged-in user. `disconnect()` truncates the table. Anyone wanting multi-tenant / per-user connections must change the retrieval path (`current()`, `LinkedInManager::requireAccount()`, `disconnect()`), not just add a column.
+`LinkedInAccount::current()` is the account that was **connected last**: `latest('updated_at')`, then `latest('id')` for a tie within one second. The package assumes **a single active connection for the whole application**, not an account per logged-in user. `disconnect()` deletes every row, after dropping the cached company pages of each. Anyone wanting multi-tenant / per-user connections must change the retrieval path (`current()`, `LinkedInManager::requireAccount()`, `disconnect()`), not just add a column.
+
+`updated_at` carries that meaning, and three things keep it true:
+
+- `connectFromCode()` uses `updateOrCreate` on `member_id`, so a member who reconnects keeps their old row. It calls `touch()` when the save changed nothing, because Eloquent then skips the update and the row would stay behind a newer one. Ordering on `id` alone was the bug fixed in 1.8: the application kept posting as the other account.
+- `freshAccessToken()` saves inside `LinkedInAccount::withoutTimestamps()`. Never let a token refresh touch `updated_at`: a refresh is not a connect, and refreshing a dormant row would silently make it the account the application posts with.
+- `connectFromCode()` and `disconnect()` forget the organizations cache. The cache is keyed on the account id and a reconnect keeps that id, so without it a new token would be served the page list of the old one. `disconnect()` has to do it before the delete, while it still knows the ids.
+
+### The connect routes decide who the application posts as
+
+Whoever completes the connect flow becomes that single connection. The default `routes.middleware` is therefore `['web', 'auth']`, in `config/linkedin.php` **and** in `LinkedInConfig::routeMiddleware()`; keep the two equal. Never loosen this default back to `['web']`: every visitor could then connect their own account and the site would post as them. The package cannot know the host app's roles, so it stops at `auth`, and the docs tell the owner to add a `can:` ability. A published config keeps its own value, which is why the 1.8 changelog tells owners to check it.
+
+Tests that hit the routes sign in with `actingAs(new Illuminate\Foundation\Auth\User)`. The Testbench app has no `login` route; `LinkedInRouteProtectionTest` defines one. Never add a `login` route to `src/`: it belongs to the host app, and a package route of that name would hijack its redirect for guests.
+
+### What the callback may say
+
+`LinkedInController::describe()` turns an exception from the code exchange into the flash message. Never flash `$e->getMessage()` of a `LinkedInApiException` or of a foreign `Throwable`: the first holds LinkedIn's raw response body, the second may hold a query or a decryption error, and the person reading it is whoever clicked the button. The exception goes to `report()`; the screen gets a fixed sentence. Only the package's other exceptions, whose messages are fixed text written for a user, are shown as they are.
 
 ### Posting as the company page reuses the member's token
 

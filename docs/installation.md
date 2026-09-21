@@ -69,7 +69,7 @@ All keys live in `config/linkedin.php`.
 | `table` | | `linkedin_accounts` | Name of the accounts table, read by the model and the migration |
 | `routes.enabled` | `LINKEDIN_ROUTES_ENABLED` | `true` | Register the built-in connect and callback routes |
 | `routes.prefix` | `LINKEDIN_ROUTE_PREFIX` | `linkedin` | URL prefix of those routes |
-| `routes.middleware` | | `['web']` | Middleware of those routes |
+| `routes.middleware` | | `['web', 'auth']` | Middleware of those routes. Whoever completes the flow becomes the connection the application posts with, so add an ability such as `can:manage-linkedin`; see [Who may connect](connecting.md#who-may-connect) |
 | `routes.connect_name` | | `linkedin.connect` | Name of the connect route |
 | `routes.callback_name` | | `linkedin.callback` | Name of the callback route; also decides the `redirect_uri` |
 | `routes.redirect_to` | | `null` | Route name to send the user back to after the flow; `null` redirects to `/` |

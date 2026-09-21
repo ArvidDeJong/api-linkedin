@@ -11,7 +11,7 @@ Use this skill when code publishes on LinkedIn in an application that has `darvi
 
 ## How a publish runs
 
-1. `LinkedIn::postAsMember()`, `postAsOrganization()` and `publish()` resolve the one stored connection with `LinkedInAccount::current()` (the row with the highest id). Without a row they throw `LinkedInNotConnected`. `postAsOrganization()` checks the URN first: without an argument and without `linkedin.organization_urn` it throws `LinkedInConfigurationException`, connected or not.
+1. `LinkedIn::postAsMember()`, `postAsOrganization()` and `publish()` resolve the one stored connection with `LinkedInAccount::current()` (the account that was connected last). Without a row they throw `LinkedInNotConnected`. `postAsOrganization()` checks the URN first: without an argument and without `linkedin.organization_urn` it throws `LinkedInConfigurationException`, connected or not.
 2. For an author that starts with `urn:li:organization:` the stored scopes are checked. When they are known and `w_organization_social` is not among them, `LinkedInScopeMissing` is thrown and no request goes out.
 3. `LinkedInOAuth::freshAccessToken()` returns the stored token, or refreshes it when `token_expires_at` is less than a minute away. Without a usable refresh token it throws `LinkedInConnectionExpired`. A row without `token_expires_at` is never treated as expired.
 4. The post goes to `https://api.linkedin.com/rest/posts` with the `LinkedIn-Version` header (`linkedin.api_version`) and `X-Restli-Protocol-Version: 2.0.0`. The reserved characters in the commentary are escaped by the package. Every post is `PUBLIC`, `MAIN_FEED` and `PUBLISHED`; there is no draft or connections-only option.
@@ -32,9 +32,10 @@ The package writes no log lines. The only place it reports anything is the built
 | The company page list fails | `LinkedInApiException`, operation `organizations` | `Could not fetch the LinkedIn company pages: <body>` | yes |
 | Image upload fails | `LinkedInApiException`, operation `image` | `Could not initialize the LinkedIn image upload: <body>`, `LinkedIn returned no upload URL for the image` or `LinkedIn refused the image upload: <body>` | yes |
 | 2xx without `x-restli-id` and without `id` | `['urn' => '', 'permalink' => '']` | none, nothing throws | yes |
-| LinkedIn unreachable, timeout | Laravel's `Illuminate\Http\Client\ConnectionException`, not a `LinkedInException` | Laravel's | attempted |
+| A 2xx token answer without `access_token`, or a profile without `sub` (empty body, HTML, other JSON) | `LinkedInApiException`, operation `token` or `profile`, the 2xx `status` | `LinkedIn returned a token response without an access token` or `LinkedIn returned a profile without a member id` | yes |
+| LinkedIn unreachable, timeout, on any call | `LinkedInApiException` with `status` 0, an empty `body`, `isConnectionProblem()` true and Laravel's `ConnectionException` as `getPrevious()` | `LinkedIn could not be reached (<operation>)`; the failing URL is left out on purpose | attempted |
 
-`LinkedInApiException` carries `operation` (the `OPERATION_*` constants), `status`, `body` and `isAuthorizationProblem()` (true for 401 and 403). All package exceptions extend `Darvis\ApiLinkedin\Exceptions\LinkedInException`, a `RuntimeException`. Branch on the type; the messages are free to change.
+`LinkedInApiException` carries `operation` (the `OPERATION_*` constants), `status`, `body`, `isAuthorizationProblem()` (true for 401 and 403) and `isConnectionProblem()` (true for status 0, no answer at all). Its message and `body` hold LinkedIn's raw answer: log them, never show them to a visitor. All package exceptions extend `Darvis\ApiLinkedin\Exceptions\LinkedInException`, a `RuntimeException`. Branch on the type; the messages are free to change.
 
 ## Publishing from a job
 
@@ -50,6 +51,10 @@ public function handle(): void
     try {
         $result = LinkedIn::postAsMember($this->post->text);
     } catch (LinkedInApiException $e) {
+        if ($e->isConnectionProblem()) {
+            throw $e;          // status 0, no answer at all: let the queue retry
+        }
+
         if ($e->isAuthorizationProblem() || $e->status < 500) {
             $this->fail($e);   // a retry sends the same request into the same answer
 
@@ -72,7 +77,7 @@ public function handle(): void
 }
 ```
 
-A job that retries after the post went out publishes it twice; the package has no duplicate check. Store the URN before anything else in the job can fail.
+Check `isConnectionProblem()` before `status < 500`: an unreachable LinkedIn has status 0, and until 1.8 it was Laravel's `ConnectionException` that escaped this `catch` and got retried by itself. A job that retries after the post went out publishes it twice; the package has no duplicate check. Store the URN before anything else in the job can fail.
 
 ## Posting as a company page
 
@@ -129,7 +134,13 @@ The built-in routes are `linkedin.connect` (`GET /linkedin/connect`) and `linked
 | Credentials missing | `linkedin_error` | `Configure LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET first.` |
 | LinkedIn refused | `linkedin_error` | `LinkedIn connection denied: <description>`, plus a sentence about the Community Management API when member scopes would have worked |
 | No code, or the state does not match | `linkedin_error` | `Invalid or expired connection session. Please try again.` |
-| The code exchange threw | `linkedin_error` | `Connecting failed: <exception message>` (also passed to `report()`) |
+| LinkedIn refused the code exchange | `linkedin_error` | `Connecting failed: LinkedIn did not accept the authorization. Please try again.` |
+| The profile could not be fetched | `linkedin_error` | `Connecting failed: the LinkedIn profile could not be fetched. Please try again.` |
+| LinkedIn could not be reached | `linkedin_error` | `Connecting failed: LinkedIn could not be reached. Please try again.` |
+| Another `LinkedInException` | `linkedin_error` | `Connecting failed: <the package's own message>` |
+| Anything else (database, decryption) | `linkedin_error` | `Connecting failed because of an unexpected error. Please try again.` |
+
+Every exception in the code exchange goes to `report()`. The flash message never holds LinkedIn's response body or the message of a foreign exception; do the same in your own callback and don't echo `$e->getMessage()`.
 
 ```blade
 @if (session('linkedin_error'))
@@ -171,15 +182,15 @@ $account = LinkedIn::connectFromCode((string) $request->string('code'), session(
 
 ## Pitfalls
 
-- **The connect route is open.** The default middleware is `['web']` only, and whoever completes the flow becomes the connection the whole application posts with. Set `linkedin.routes.middleware` to something like `['web', 'auth', 'can:manage-linkedin']` in the published config.
-- **One connection, and "current" means the highest id.** Connecting a second member adds a row and that row wins. Connecting a member that already has an older row updates that row and does not make it current. Call `LinkedIn::disconnect()` before connecting another account.
-- **`disconnect()` only deletes the rows.** It sends nothing to LinkedIn and does not clear the cached page list. `forgetOrganizations()` needs the account, so call it before `disconnect()`, not after.
+- **Signed in is not the same as allowed.** Whoever completes the flow becomes the connection the whole application posts with. Since 1.8 the default middleware is `['web', 'auth']`, so a guest is sent to the `login` route, but every signed-in user still gets through. Set `linkedin.routes.middleware` to something like `['web', 'auth', 'can:manage-linkedin']` in the published config and define that ability. A `config/linkedin.php` published before 1.8 still says `['web']` and wins over the package default: check it. With another guard, use its middleware (`auth:admin`). Routes of your own (`routes.enabled` false) get no middleware from the package at all.
+- **One connection, and "current" means connected last.** `LinkedInAccount::current()` orders on `updated_at`, then `id`. Connecting a second member adds a row; connecting a member that already has a row updates it, and either way that account becomes the one the application posts with. A token refresh leaves `updated_at` alone. Don't `touch()` or update a row of this table yourself, that makes it current. Call `LinkedIn::disconnect()` first when the old connection should be gone rather than dormant.
+- **`disconnect()` is local.** It deletes every row and the cached page list of each, and sends nothing to LinkedIn: the token stays valid there until it expires or the member revokes the app. Reconnecting clears the cached page list too. `forgetOrganizations()` needs a connected account and does nothing after `disconnect()`.
 - **`hasScope()` and `lacksScope()` are both false when the scopes are unknown** (`grantedScopes()` is null, a row from before 1.4). Offer features on `hasScope()`, `canPostAsOrganization()` and `canListOrganizations()`; don't write `! $account->hasScope(...)` to block something. With unknown scopes the guards let the call through, and a missing scope then surfaces as a `LinkedInApiException` with status 403.
 - **A token never gains scopes.** Setting `LINKEDIN_ORGANIZATION_URN` or `LINKEDIN_ORGANIZATIONS_ENABLED` after connecting changes what the next authorization asks for, not what the stored token may do. Reconnect; don't retry and don't edit the `scopes` column.
 - **Pass the requested scopes to `connectFromCode()`.** Without the second argument, and when LinkedIn leaves `scope` out of the token response, the scopes the config implies at that moment are stored, which may not be what was asked.
 - **The redirect URI is `route(<callback_name>)`.** It has to match the LinkedIn app exactly. With the routes disabled and no route of that name, `authorizationUrl()` throws Laravel's `RouteNotFoundException`. Prefix, middleware and route names are read when the provider boots.
 - **Don't escape the commentary yourself.** The package escapes `\ | { } @ [ ] ( ) < > # * _ ~`, every time. Mention syntax such as `@[Acme](urn:li:organization:1)` therefore arrives as literal text.
-- **Connection errors are not wrapped.** Catching `LinkedInException` alone misses a timeout.
+- **A timeout is a `LinkedInApiException` with status 0** since 1.8, not Laravel's `ConnectionException`. `catch (ConnectionException)` around a package call no longer fires, and a `status < 500` check treats it as final unless `isConnectionProblem()` is asked first.
 - **`APP_KEY` rotation breaks the connection.** `access_token` and `refresh_token` are `encrypted` casts; reading them with another key throws Laravel's `DecryptException`. Reconnect after a rotation. Go through the facade or `freshAccessToken()`, never `$account->access_token`.
 - **The table name comes from `linkedin.table`**, for the model and the migration. Don't query `linkedin_accounts` by name.
 
@@ -198,7 +209,7 @@ Ask the facade what matters in app code: `LinkedIn::isConfigured()` (client id a
 | `LINKEDIN_ROUTES_ENABLED` | `routes.enabled` | `true` |
 | `LINKEDIN_ROUTE_PREFIX` | `routes.prefix` | `linkedin` |
 
-Without an env variable: `routes.middleware` (`['web']`), `routes.connect_name`, `routes.callback_name`, `routes.redirect_to` (null), `scopes` (extra scopes, `[]`), `session.state_key`, `session.scopes_key`, `session.status_key`, `session.error_key` and `table`. Publish the config with `php artisan vendor:publish --tag=linkedin-config`, the migration with `--tag=linkedin-migrations`; the migration also loads from the package.
+Without an env variable: `routes.middleware` (`['web', 'auth']`), `routes.connect_name`, `routes.callback_name`, `routes.redirect_to` (null), `scopes` (extra scopes, `[]`), `session.state_key`, `session.scopes_key`, `session.status_key`, `session.error_key` and `table`. Publish the config with `php artisan vendor:publish --tag=linkedin-config`, the migration with `--tag=linkedin-migrations`; the migration also loads from the package.
 
 ## Testing
 
