@@ -4,6 +4,49 @@ All notable changes to `darvis/api-linkedin` are documented here.
 
 ## [Unreleased]
 
+### Security
+
+- **The connect and callback routes required no login.** Whoever completes the connect flow becomes the one connection your whole application posts with, and with the package defaults any visitor could open `/linkedin/connect` and do that. The default `routes.middleware` is now `['web', 'auth']`: a guest is redirected to your `login` route (or gets a 401 on a JSON request). **What you have to do:** a `config/linkedin.php` you published earlier keeps its own value and still says `['web']`, so open that file and change it yourself. Signed in is usually still too wide; add an ability so only the right people can connect:
+
+  ```php
+  // config/linkedin.php
+  'routes' => [
+      // ...
+      'middleware' => ['web', 'auth', 'can:manage-linkedin'],
+  ],
+
+  // app/Providers/AppServiceProvider.php, in boot()
+  Gate::define('manage-linkedin', fn (User $user) => $user->is_admin);
+  ```
+
+  If you never published the config, the new default applies right away. Does your application have no `login` route, or do the people who connect the account sign in through another guard? Then set the middleware that fits, for example `['web', 'auth:admin']`. If you protected the routes in another way and really want the old behaviour, set `'middleware' => ['web']` in the published config. After upgrading, check who is connected (`LinkedIn::account()?->name`) and reconnect if it is not the account you expect.
+- **A failed connect showed internal details to the user.** The callback flashed `Connecting failed: ` followed by the raw exception message: LinkedIn's response body, or for an unexpected error things like a database or decryption message. The flash message under `linkedin_error` is now a fixed sentence (`Connecting failed: LinkedIn did not accept the authorization. Please try again.`, `... the LinkedIn profile could not be fetched ...`, `... LinkedIn could not be reached ...`, or `Connecting failed because of an unexpected error. Please try again.`). The exception still goes to `report()`, so the details are in your log. **What you have to do:** nothing, unless your application matched on the old text; look in the log for the cause instead. If you wrote your own callback, don't echo `$e->getMessage()` there either.
+- **Reconnecting an account did not make it the current one.** "Current" was the row with the highest id. A member who connected again kept their old row, so when another account had been connected in between, the application kept posting as that other account while the screen said `LinkedIn connected as <name>`. `LinkedInAccount::current()` now returns the account that was connected last (`updated_at`, then `id`); a reconnect always counts, and a token refresh does not. Nothing changes on upgrade for an application with one stored account. **What you have to do:** if more than one member ever connected, check `LinkedIn::account()?->name` after upgrading, and call `LinkedIn::disconnect()` before reconnecting when in doubt. Don't `touch()` or update rows of the accounts table yourself: that now makes a row current.
+- **The cached list of company pages outlived the connection.** `LinkedIn::disconnect()` left the cached page list behind, and `forgetOrganizations()` could not clear it afterwards because it needs a connected account; a reconnect kept serving the list of the previous token for up to `organizations.cache_ttl` seconds. Both `disconnect()` and a reconnect now drop the cached list. **What you have to do:** nothing.
+- **A timeout escaped the package's exceptions.** The docs promise that every failure is a `LinkedInException`, but an unreachable LinkedIn threw Laravel's `Illuminate\Http\Client\ConnectionException`, so a `catch (LinkedInException)` missed it and the error page or log could show the failing URL, which for an image upload is a signed, single-use address. Every call now throws a `LinkedInApiException` with `status` 0, an empty `body`, the new `isConnectionProblem()` returning true and the original exception as `getPrevious()`. A successful (2xx) token or profile response with an empty, non JSON or incomplete body now throws a `LinkedInApiException` too, instead of a `TypeError`. **What you have to do:** if you caught `ConnectionException` around a package call, catch `LinkedInApiException` and ask `$e->isConnectionProblem()` instead. If a queued job treats `$e->status < 500` as final, check `isConnectionProblem()` first so a timeout is still retried:
+
+  ```php
+  } catch (LinkedInApiException $e) {
+      if ($e->isConnectionProblem()) {
+          throw $e; // no answer at all: let the queue retry
+      }
+      // ...
+  }
+  ```
+
+### Added
+
+- `LinkedInApiException::isConnectionProblem()` and `LinkedInApiException::unreachable()`. The constructor takes an optional `$previous` as its last argument.
+
+### Changed
+
+- The default of `linkedin.routes.middleware` is `['web', 'auth']` instead of `['web']`, in `config/linkedin.php` and in `LinkedInConfig::routeMiddleware()`. See Security above for what to check in a published config.
+- `LinkedInAccount::current()` orders on `updated_at` and then `id`, instead of `id` alone.
+- A token refresh no longer changes `updated_at` of the account; that column now says when the account was connected.
+- `LinkedIn::disconnect()` and a reconnect clear the cached company pages.
+- The `linkedin_error` flash message after a failed code exchange is a fixed sentence instead of the exception message.
+- An unreachable LinkedIn throws `LinkedInApiException` (status 0) instead of Laravel's `ConnectionException`.
+
 ## [1.7.1] - 2026-09-21
 
 ### Added

@@ -6,7 +6,7 @@ nav_order: 3
 
 # Connecting
 
-The package keeps **one connection for the whole application**, not one per user: `LinkedIn::account()` returns the most recently stored account and `LinkedIn::disconnect()` removes it. A multi-tenant setup needs its own retrieval path and is out of scope.
+The package keeps **one connection for the whole application**, not one per user: `LinkedIn::account()` returns the account that was connected most recently, also when that member had connected before, and `LinkedIn::disconnect()` removes every stored connection together with its cached list of company pages. A multi-tenant setup needs its own retrieval path and is out of scope.
 
 ## The built-in routes
 
@@ -18,7 +18,37 @@ $url = route('linkedin.connect');
 
 Afterwards the user is redirected to the route named in `linkedin.routes.redirect_to`, or to `/` when that is empty, with a flash message in `session('linkedin_status')` on success or `session('linkedin_error')` on failure. The callback verifies the OAuth `state` against the session and rejects a mismatch.
 
-The routes live under the prefix and middleware from `linkedin.routes` (`/linkedin/connect` and `/linkedin/callback` by default, in the `web` group). Put your own middleware in front of them when only some users may connect the account.
+The routes live under the prefix and middleware from `linkedin.routes`: `/linkedin/connect` and `/linkedin/callback` by default.
+
+### Who may connect
+
+Whoever completes the flow becomes the connection the whole application posts with. The routes therefore run through `['web', 'auth']` by default since 1.8: a guest is sent to your `login` route, or gets a 401 when the request expects JSON. Signed in is usually still too wide, so publish the config and add an ability:
+
+```php
+// config/linkedin.php
+'routes' => [
+    // ...
+    'middleware' => ['web', 'auth', 'can:manage-linkedin'],
+],
+
+// app/Providers/AppServiceProvider.php, in boot()
+Gate::define('manage-linkedin', fn (User $user) => $user->is_admin);
+```
+
+Both routes get the same middleware. LinkedIn sends the member back in the same browser, so the session that started the flow is still signed in on the callback.
+
+A `config/linkedin.php` that was published before 1.8 still says `['web']`, and a published value always wins over the package default. Check that file after upgrading and add `auth` yourself. An application that signs its users in through another guard uses that guard's middleware, for example `auth:admin`.
+
+### When connecting fails
+
+The callback reports the exception, so the details are in your log, and flashes a fixed sentence under `linkedin_error`. The text never contains LinkedIn's response body or the message of an unexpected exception:
+
+| What happened | Flash message |
+| --- | --- |
+| LinkedIn refused the code exchange | `Connecting failed: LinkedIn did not accept the authorization. Please try again.` |
+| The profile could not be fetched | `Connecting failed: the LinkedIn profile could not be fetched. Please try again.` |
+| LinkedIn could not be reached | `Connecting failed: LinkedIn could not be reached. Please try again.` |
+| Anything unexpected, such as a database error | `Connecting failed because of an unexpected error. Please try again.` |
 
 ## Wiring the flow yourself
 
@@ -92,4 +122,4 @@ A token never gains scopes. When a call needs a scope the token lacks, the packa
 
 ## Token lifecycle
 
-Every publish first asks for a fresh access token. An expired token is refreshed automatically with the refresh token, with a one minute margin; when no usable refresh token is left, the package throws `LinkedInConnectionExpired`, the one failure an end user can fix by connecting again. Never read `$account->access_token` directly in your own code.
+Every publish first asks for a fresh access token. An expired token is refreshed automatically with the refresh token, with a one minute margin. A refresh leaves `updated_at` alone, because that column says when the account was connected and decides which account is the current one. When no usable refresh token is left, the package throws `LinkedInConnectionExpired`, the one failure an end user can fix by connecting again. Never read `$account->access_token` directly in your own code.
